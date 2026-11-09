@@ -1,6 +1,7 @@
 import { factionIncome, factionUpkeep, type ResourceKind } from "../engine";
 import { affordableResearch } from "../game/research";
 import type { GameSession } from "../game/session";
+import { victoryGoal } from "../game/victory";
 
 const RESOURCES: Array<{ key: ResourceKind; label: string; icon: string }> = [
   { key: "gold", label: "Gold", icon: "◆" },
@@ -23,6 +24,7 @@ export function TopBar({ session, onQuit, onToggleTreasury, onOpenResearch }: Pr
   const upkeep = factionUpkeep(state, me.id);
   const active = state.factions[state.activeFaction]!;
   const researchable = affordableResearch(state, me.id).length;
+  const goal = victoryGoal(state, me.id);
 
   return (
     <div className="topbar panel">
@@ -31,6 +33,9 @@ export function TopBar({ session, onQuit, onToggleTreasury, onOpenResearch }: Pr
         <strong>{me.name}</strong>
       </div>
       <div className="turn">Turn {state.turn}</div>
+      <div className="goal muted" title={goal.detail}>
+        {goal.text}
+      </div>
       <button className="resources ghost" onClick={onToggleTreasury} title="Show income and upkeep">
         {RESOURCES.map(({ key, label, icon }) => {
           const delta = income[key] - (key === "gold" ? upkeep : 0);
@@ -47,7 +52,7 @@ export function TopBar({ session, onQuit, onToggleTreasury, onOpenResearch }: Pr
         })}
       </button>
       <div className="spacer" />
-      {!session.isHumanTurn && !state.winner && <span className="muted">{active.name} is thinking…</span>}
+      {!session.isHumanTurn && !state.winner && !session.defeated && <span className="muted">{active.name} is thinking…</span>}
       <button className="ghost research-button" onClick={onOpenResearch} title="Research (R)">
         Research
         {researchable > 0 && <span className="badge">{researchable}</span>}

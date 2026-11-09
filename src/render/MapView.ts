@@ -30,6 +30,12 @@ export interface MapViewModel {
   viewer: string;
   selection: Selection;
   targets: Map<string, MoveKind>;
+  /** Lift the fog of war, e.g. once the game is over. */
+  revealAll?: boolean;
+}
+
+function visibleTo(model: MapViewModel): Set<string> {
+  return model.revealAll ? new Set(Object.keys(model.state.provinces)) : visibleProvinces(model.state, model.viewer);
 }
 
 export interface MapViewCallbacks {
@@ -201,8 +207,8 @@ export class MapView {
     const model = this.model;
     const board = this.board;
     if (!model || !board) return;
-    const { state, viewer, selection, targets } = model;
-    const visible = visibleProvinces(state, viewer);
+    const { state, selection, targets } = model;
+    const visible = visibleTo(model);
 
     for (const [id, v] of board.provinces) {
       const owner = state.provinces[id]?.owner ?? null;
@@ -226,7 +232,7 @@ export class MapView {
     const board = this.board;
     if (!model || !board) return;
     const { state, viewer, selection } = model;
-    const visible = visibleProvinces(state, viewer);
+    const visible = visibleTo(model);
 
     const byProvince = new Map<string, string[]>();
     for (const army of Object.values(state.armies)) {

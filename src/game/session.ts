@@ -3,14 +3,18 @@ import {
   createGame,
   generateRandomScenario,
   placeholderResolver,
+  playAiTurn,
   resolveBattle,
   scenarioProvince,
+  visibleProvinces,
   type BattleResult,
   type Command,
+  type Difficulty,
   type GameEvent,
   type GameState,
   type PendingBattle,
   type Scenario,
+  type VictoryCondition,
 } from "../engine";
 import { describeEvent } from "./describe";
 
@@ -29,11 +33,21 @@ export interface LogEntry {
   faction: string | null;
 }
 
-export interface NewGameSettings {
+export interface GameRules {
+  difficulty: Difficulty;
+  victory: VictoryCondition;
+}
+
+export interface NewGameSettings extends Partial<GameRules> {
   seed: number;
   provinces: number;
   factions: number;
 }
+
+export const DEFAULT_RULES: GameRules = {
+  difficulty: "normal",
+  victory: { kind: "domination", percent: 70 },
+};
 
 export interface BattleReport {
   battle: PendingBattle;
@@ -52,8 +66,8 @@ export class GameSession {
   selection: Selection = { province: null, army: null };
   log: LogEntry[] = [];
   lastError: string | null = null;
-  /** The most recent battle a human faction fought, until the player dismisses it. */
-  battleReport: BattleReport | null = null;
+  /** Battles a human faction fought that the player has not dismissed yet, oldest first. */
+  battleReports: BattleReport[] = [];
   version = 0;
 
   private listeners = new Set<() => void>();
@@ -71,15 +85,15 @@ export class GameSession {
       provinces: settings.provinces,
       factions: settings.factions,
     });
-    return GameSession.fromScenario(scenario, settings.seed);
+    return GameSession.fromScenario(scenario, settings.seed, settings);
   }
 
-  static fromScenario(scenario: Scenario, seed: number): GameSession {
+  static fromScenario(scenario: Scenario, seed: number, rules: Partial<GameRules> = {}): GameSession {
     const human = scenario.factions[0]!.id;
     const { state, events } = createGame(scenario, {
       seed,
-      difficulty: "normal",
-      victory: { kind: "domination", percent: 70 },
+      difficulty: rules.difficulty ?? DEFAULT_RULES.difficulty,
+      victory: rules.victory ?? DEFAULT_RULES.victory,
       controllers: { [human]: "human" },
     });
     return new GameSession(state, events);
@@ -99,11 +113,17 @@ export class GameSession {
     return Object.values(this.state.factions).find((f) => f.controller === "human")?.id ?? this.state.factionOrder[0]!;
   }
 
+  /** True once every human faction is eliminated; the computer factions stop playing then. */
+  get defeated(): boolean {
+    return !this.state.winner && !Object.values(this.state.factions).some((f) => f.controller === "human" && f.alive);
+  }
+
   get isHumanTurn(): boolean {
     return this.state.factions[this.state.activeFaction]?.controller === "human" && !this.state.winner;
   }
 
   dispatch(command: Command): boolean {
+    const actor = this.state.activeFaction;
     const result = applyCommand(this.state, command);
     if (!result.ok) {
       this.lastError = result.error;
@@ -112,8 +132,8 @@ export class GameSession {
     }
     this.lastError = null;
     this.state = result.state;
-    this.record(result.events);
-    this.resolveBattles();
+    this.record(result.events, actor);
+    this.resolveBattles(actor);
     this.fixSelection();
     if (command.kind === "end-turn") {
       this.selection = { province: null, army: null };
@@ -176,35 +196,51 @@ export class GameSession {
     return result.ok ? null : result.error;
   }
 
+  get battleReport(): BattleReport | null {
+    return this.battleReports[0] ?? null;
+  }
+
   dismissBattleReport(): void {
-    this.battleReport = null;
+    this.battleReports.shift();
     this.emit();
   }
 
-  private resolveBattles(): void {
+  /** Settles any pending battle. Battles a human fought are queued as reports. */
+  private settle = (state: GameState): { state: GameState; events: GameEvent[] } => {
     // Placeholder until physics battles (build step 6): resolve instantly.
-    while (this.state.pendingBattle) {
-      const battle = this.state.pendingBattle;
-      const result = placeholderResolver(battle, scenarioProvince(this.state, battle.province).terrain);
-      const resolved = resolveBattle(this.state, result);
+    const events: GameEvent[] = [];
+    let current = state;
+    while (current.pendingBattle) {
+      const battle = current.pendingBattle;
+      const result = placeholderResolver(battle, scenarioProvince(current, battle.province).terrain);
+      const resolved = resolveBattle(current, result);
       if (!resolved.ok) throw new Error(resolved.error);
       const humanInvolved = [battle.attacker.faction, battle.defender.faction].some(
-        (f) => f && this.state.factions[f]?.controller === "human",
+        (f) => f && current.factions[f]?.controller === "human",
       );
-      if (humanInvolved) this.battleReport = { battle, result };
-      this.state = resolved.state;
-      this.record(resolved.events);
+      if (humanInvolved) this.battleReports.push({ battle, result });
+      current = resolved.state;
+      events.push(...resolved.events);
     }
+    return { state: current, events };
+  };
+
+  private resolveBattles(actor: string): void {
+    if (!this.state.pendingBattle) return;
+    const visibleBefore = visibleProvinces(this.state, this.viewer);
+    const { state, events } = this.settle(this.state);
+    this.state = state;
+    this.record(events, actor, visibleBefore);
   }
 
   private playAiTurns(): void {
-    // Placeholder AI until build step 5: computer factions pass.
     let guard = 0;
-    while (!this.state.winner && this.state.factions[this.state.activeFaction]?.controller === "ai" && guard++ < 100) {
-      const result = applyCommand(this.state, { kind: "end-turn" });
-      if (!result.ok) throw new Error(result.error);
-      this.state = result.state;
-      this.record(result.events);
+    while (!this.state.winner && !this.defeated && this.state.factions[this.state.activeFaction]?.controller === "ai" && guard++ < 100) {
+      const actor = this.state.activeFaction;
+      const visibleBefore = visibleProvinces(this.state, this.viewer);
+      const { state, events } = playAiTurn(this.state, this.settle);
+      this.state = state;
+      this.record(events, actor, visibleBefore);
     }
   }
 
@@ -217,8 +253,16 @@ export class GameSession {
     }
   }
 
-  private record(events: GameEvent[]): void {
+  /**
+   * Adds events to the log, skipping what the viewing player could not know:
+   * other factions' recruiting, research and building, and fighting out of sight.
+   */
+  private record(events: GameEvent[], actor: string | null = null, visibleBefore?: Set<string>): void {
+    const viewer = this.viewer;
+    const visible = visibleProvinces(this.state, viewer);
+    for (const p of visibleBefore ?? []) visible.add(p);
     for (const event of events) {
+      if (!eventVisibleTo(this.state, viewer, actor, visible, event)) continue;
       const described = describeEvent(this.state, event);
       if (!described) continue;
       this.log.push({ id: this.nextLogId++, turn: this.state.turn, ...described });
@@ -229,5 +273,35 @@ export class GameSession {
   private emit(): void {
     this.version++;
     for (const listener of this.listeners) listener();
+  }
+}
+
+function eventVisibleTo(state: GameState, viewer: string, actor: string | null, visible: Set<string>, e: GameEvent): boolean {
+  const human = (f: string | null) => !!f && state.factions[f]?.controller === "human";
+  switch (e.kind) {
+    case "turn-started":
+      return human(e.faction);
+    case "income":
+    case "desertion":
+    case "recruited":
+    case "researched":
+    case "built":
+      return e.faction === viewer;
+    case "disbanded":
+    case "split":
+    case "merged":
+    case "upgraded":
+      return actor === viewer;
+    case "captured":
+      return e.faction === viewer || e.previousOwner === viewer || visible.has(e.province);
+    case "battle-started":
+      return [e.battle.attacker.faction, e.battle.defender.faction].includes(viewer) || visible.has(e.battle.province);
+    case "battle-resolved":
+      return e.attacker === viewer || e.defender === viewer || visible.has(e.province);
+    case "proposal":
+    case "proposal-rejected":
+      return e.proposal.from === viewer || e.proposal.to === viewer;
+    default:
+      return true;
   }
 }

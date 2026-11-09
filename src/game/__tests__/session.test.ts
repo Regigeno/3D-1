@@ -72,6 +72,39 @@ describe("GameSession", () => {
     expect(session.battleReport).toBeNull();
   });
 
+  it("lets the computer attack and queues the report for the human", () => {
+    const session = readySession();
+    redArmy(session).squads = [{ type: "infantry", era: "prehistoric", soldiers: 1 }];
+    const blue = Object.values(session.state.armies).find((a) => a.owner === "blue")!;
+    session.state.provinces.B!.owner = "blue";
+    blue.location = "B";
+    blue.squads = Array.from({ length: 8 }, () => ({ type: "cavalry" as const, era: "medieval" as const, soldiers: 3 }));
+    session.dispatch({ kind: "end-turn" });
+    expect(session.battleReport?.battle.province).toBe("A");
+    expect(session.battleReport?.battle.attacker.faction).toBe("blue");
+  });
+
+  it("hides what computer factions do out of sight", () => {
+    const session = readySession();
+    for (let i = 0; i < 4; i++) session.dispatch({ kind: "end-turn" });
+    const texts = session.log.map((e) => e.text);
+    expect(texts.some((t) => /^Blue (recruited|unlocked|built)/.test(t))).toBe(false);
+    expect(texts.some((t) => t.startsWith("Turn ") && t.includes("Blue"))).toBe(false);
+  });
+
+  it("starts games with the chosen difficulty and victory condition", () => {
+    const session = GameSession.newRandomGame({
+      seed: 4,
+      provinces: 20,
+      factions: 3,
+      difficulty: "hard",
+      victory: { kind: "score", turnLimit: 30 },
+    });
+    expect(session.state.options.difficulty).toBe("hard");
+    expect(session.state.options.victory).toEqual({ kind: "score", turnLimit: 30 });
+    expect(session.isHumanTurn).toBe(true);
+  });
+
   it("checks commands without applying them", () => {
     const session = readySession();
     const before = session.state;

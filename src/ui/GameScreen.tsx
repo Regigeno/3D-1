@@ -7,6 +7,7 @@ import { TopBar } from "./TopBar";
 import { TreasuryPanel } from "./TreasuryPanel";
 import { BattleReport } from "./BattleReport";
 import { ResearchScreen } from "./ResearchScreen";
+import { GameOver } from "./GameOver";
 import { provinceName } from "../game/describe";
 
 interface Hover {
@@ -46,7 +47,13 @@ export function GameScreen({ session, onQuit }: { session: GameSession; onQuit()
   }, [session]);
 
   useEffect(() => {
-    viewRef.current?.update({ state: session.state, viewer: session.viewer, selection: session.selection, targets });
+    viewRef.current?.update({
+      state: session.state,
+      viewer: session.viewer,
+      selection: session.selection,
+      targets,
+      revealAll: !!session.state.winner || session.defeated,
+    });
   }, [session, version, targets]);
 
   useEffect(() => {
@@ -75,7 +82,7 @@ export function GameScreen({ session, onQuit }: { session: GameSession; onQuit()
     return () => window.removeEventListener("keydown", onKey);
   }, [session]);
 
-  const winner = session.state.winner ? session.state.factions[session.state.winner] : null;
+  const gameOver = !!session.state.winner || session.defeated;
 
   return (
     <div className="game">
@@ -85,7 +92,7 @@ export function GameScreen({ session, onQuit }: { session: GameSession; onQuit()
       <ProvincePanel session={session} targets={targets} onFocus={(p) => viewRef.current?.focusProvince(p)} />
       <EventLog session={session} />
       {session.lastError && <div className="toast error">{session.lastError}</div>}
-      {!session.selection.province && !winner && (
+      {!session.selection.province && !gameOver && (
         <div className="hint panel">
           Click a province or army. Drag to pan, right-drag to rotate, scroll to zoom. <kbd>R</kbd> opens research, <kbd>Enter</kbd> ends your turn.
         </div>
@@ -97,17 +104,10 @@ export function GameScreen({ session, onQuit }: { session: GameSession; onQuit()
         </div>
       )}
       {showResearch && <ResearchScreen session={session} onClose={() => setShowResearch(false)} />}
-      {session.battleReport && !winner && <BattleReport session={session} report={session.battleReport} />}
-      {winner && (
-        <div className="overlay">
-          <div className="panel victory">
-            <h2 style={{ color: winner.color }}>{winner.name} wins!</h2>
-            <p className="muted">Turn {session.state.turn}</p>
-            <button className="primary" onClick={onQuit}>
-              New campaign
-            </button>
-          </div>
-        </div>
+      {session.battleReport ? (
+        <BattleReport session={session} report={session.battleReport} />
+      ) : (
+        gameOver && <GameOver session={session} onQuit={onQuit} />
       )}
     </div>
   );
