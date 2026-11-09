@@ -1,6 +1,6 @@
-# Strategy Layer Design
+# Petty Empires: Strategy Layer Design
 
-A browser-based 3D sandbox war game: *Age of Conquest IV*-style turn-based
+**Petty Empires** is a browser-based 3D sandbox war game: *Age of Conquest IV*-style turn-based
 grand strategy on a province map, with every battle resolved as a
 *Totally Accurate Battle Simulator*-style physics simulation the player watches.
 

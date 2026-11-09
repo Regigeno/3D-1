@@ -17,7 +17,7 @@ export function NewGameMenu({ onStart }: { onStart(settings: NewGameSettings): v
           onStart({ seed, provinces, factions });
         }}
       >
-        <h1>3D-1</h1>
+        <h1>Petty Empires</h1>
         <p className="muted">Turn-based conquest. Physics battles. Every era at once.</p>
 
         <label>

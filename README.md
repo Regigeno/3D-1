@@ -1,4 +1,4 @@
-# 3D-1
+# Petty Empires
 
 A browser 3D sandbox war game: *Age of Conquest IV*-style turn-based strategy
 with *Totally Accurate Battle Simulator*-style physics battles. See
