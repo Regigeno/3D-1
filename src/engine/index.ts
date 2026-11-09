@@ -3,6 +3,7 @@ export { createGame, validateScenario } from "./setup";
 export { applyCommand } from "./commands";
 export { placeholderResolver, resolveBattle, runPendingBattle } from "./battle";
 export { generateRandomScenario, type RandomMapOptions } from "./mapgen";
+export { PRESETS, presetScenario, buildPreset, type PresetDefinition, type PresetProvince } from "./scenarios";
 export * from "./queries";
 export {
   UNITS,

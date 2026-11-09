@@ -4,7 +4,9 @@
 grand strategy on a province map, with every battle resolved as a
 *Totally Accurate Battle Simulator*-style physics simulation the player watches.
 
-Status: design draft. Nothing in this document is implemented yet.
+Status: steps 1–7 of the build order are implemented. Sections below keep the
+original design and note, where it matters, what the code actually does.
+Hotseat multiplayer and Sandbox Battle mode are still future work.
 
 ---
 
@@ -28,8 +30,23 @@ Status: design draft. Nothing in this document is implemented yet.
 | Physics | Rapier (WASM, deterministic) |
 | Language / build | TypeScript + Vite |
 | UI | React overlay on top of the Three.js canvas |
-| Saves | `localStorage` / IndexedDB, plus export/import as `.json` |
+| Saves | `localStorage`, plus export/import as `.json` |
 | Deployment | GitHub Actions builds and publishes to Pages on merge to `main` |
+
+### 2.1 As built in step 7
+
+- **Saves.** Format `petty-empires-save` version 1: game state, event log, and
+  battle reports. The browser keeps one autosave (replaced at the start of
+  each of your turns, and removed when that game ends) plus up to 12 manual
+  saves. Export downloads a `.json` file; import reads one back.
+- **Presets.** Fantasy Earth (56 provinces, six empires, land bridges between
+  the continents) and The Shattered Crown (33 provinces on a broken ring).
+  The player can play as any faction on a preset. Random islands are unchanged.
+- **Deployment.** `base: "./"` so the built site works from a project subpath.
+  The Pages workflow runs on `main` only. A private repository also needs a
+  plan that includes GitHub Pages, and Pages → Source set to GitHub Actions.
+- **Polish.** Synthesized sound (no audio files), high/low graphics, a choice
+  to ask, always watch, or always skip your battles, and a how-to-play guide.
 
 Constraints that follow from GitHub Pages:
 
@@ -60,7 +77,7 @@ rewrite.
 
 On starting a campaign, the player picks one of:
 
-- **Preset fictional worlds** (hand-made).
+- **Preset fictional worlds** (hand-made). The Shattered Crown is the first.
 - **Fantasy Earth** (a stylized, hand-made Earth map).
 - **Random map** (procedurally generated).
 
@@ -326,6 +343,22 @@ Kept at *Age of Conquest* level on purpose.
   threats, and trust. Breaking a treaty lowers trust with everyone.
 - Out of scope: characters, marriages, events, trade deals.
 
+### 11.1 As built in step 7
+
+- The diplomacy screen (D) lists every living rival with relation, trust, and
+  the legal action: propose peace, propose alliance, declare war, or break an
+  alliance. Breaking an alliance asks for confirmation, because it costs 30
+  trust with every faction. Ending a peace that has already lasted 10 turns
+  does not.
+- Incoming offers sit at the top of the screen and on the Diplomacy button.
+  Accepting or declining is the same `respond-proposal` command the AI uses.
+  An unanswered proposal expires when the proposer's next turn begins.
+- The AI now sends peace and alliance proposals to human factions as well as
+  to other computer factions. Peace is offered to the strongest bordering
+  enemy when the AI is outmatched, or when it is fighting on two or more
+  fronts and that enemy is comparable. An alliance still needs peace, three
+  turns of it, and a shared enemy.
+
 ## 12. Data Schemas (draft)
 
 ### 12.1 Scenario
@@ -442,6 +475,7 @@ type Command =
   | { kind: "merge"; armies: string[] }
   | { kind: "upgrade-squad"; army: string; squad: number }
   | { kind: "diplomacy"; target: string; action: "propose-peace" | "propose-alliance" | "declare-war" }
+  | { kind: "respond-proposal"; from: string; accept: boolean }
   | { kind: "end-turn" };
 ```
 
@@ -468,8 +502,9 @@ best-scoring command until it has nothing worth doing:
 2. **Diplomacy.** Break an alliance once no shared enemy is left. Break a
    peace that has lasted 10 turns when the neighbor is much weaker, or when
    there is no war on any border. Sue for peace when fighting on two or more
-   fronts. Offer alliances against a shared enemy. The AI only proposes to
-   other AIs until diplomacy has a UI (step 7).
+   fronts, or when a single bordering enemy is much stronger. Offer alliances
+   against a shared enemy. Proposals go to human factions as well as computer
+   ones; the player answers them on the diplomacy screen.
 3. **Research.** The best type-weight per Knowledge among affordable steps.
    Fantastical needs Mana income; Futuristic is discounted without Energy.
 4. **Build.** Scored by return: Markets in safe provinces, a Library per six
@@ -512,7 +547,9 @@ games on Easy, 60% on Normal, and 35% on Hard.
    all five types.
 5. **Opponent AI and victory conditions.**
 6. **Physics battles.** Rapier + ragdolls, auto-deployment, Watch/Skip.
-7. **Diplomacy, saves, polish, GitHub Pages deployment.**
+7. **Diplomacy, saves, polish, GitHub Pages deployment.** Done: see sections
+   2.1 and 11.1. The Pages workflow is in the repository; publishing still
+   needs a merge to `main` and Pages set to GitHub Actions.
 
 ### 14.1 Rules decided while building step 1
 

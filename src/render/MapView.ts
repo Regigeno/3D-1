@@ -24,6 +24,8 @@ import type { MoveKind, Selection } from "../game/session";
 import { buildBoard, type Board } from "./board";
 import { createArmyFigure, createSelectionRing, updateFigureLabel, type ArmyFigure } from "./figures";
 import { HIGHLIGHT, OCEAN_COLOR, SKY_COLOR, provinceTopColor } from "./palette";
+import { applyQuality } from "./quality";
+import type { GraphicsQuality } from "../game/settings";
 
 export interface MapViewModel {
   state: GameState;
@@ -132,8 +134,10 @@ export class MapView {
   update(model: MapViewModel): void {
     this.model = model;
     if (this.ensureBoard(model.state.scenario)) {
-      const capital = model.state.factions[model.viewer]?.capital;
-      if (capital) this.focusProvince(capital);
+      const { state, viewer } = model;
+      const capital = state.factions[viewer]?.capital;
+      const home = capital && state.provinces[capital]?.owner === viewer ? capital : Object.keys(state.provinces).find((id) => state.provinces[id]!.owner === viewer);
+      if (home) this.focusProvince(home);
     }
     this.syncProvinces();
     this.syncArmies();
@@ -321,6 +325,11 @@ export class MapView {
 
     this.renderer.render(this.scene, this.camera);
   };
+
+  setQuality(quality: GraphicsQuality): void {
+    applyQuality(this.renderer, this.scene, quality);
+    this.resize();
+  }
 
   private resize(): void {
     const { clientWidth: w, clientHeight: h } = this.container;

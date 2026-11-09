@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { sound } from "../audio/sound";
 import type { GameSession } from "../game/session";
 import { VICTORY_LABEL, standings } from "../game/victory";
 
@@ -11,6 +13,7 @@ export function GameOver({ session, onQuit }: { session: GameSession; onQuit(): 
     : winner
       ? `${winner.name} won by ${VICTORY_LABEL[state.options.victory.kind].toLowerCase()} on turn ${state.turn}.`
       : `${state.factions[session.viewer]?.name ?? "Your empire"} was wiped off the map on turn ${state.turn}.`;
+  useEffect(() => sound.play(won ? "victory" : "defeat"), [won]);
 
   return (
     <div className="overlay">

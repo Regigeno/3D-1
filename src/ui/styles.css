@@ -1043,3 +1043,308 @@ tr.total td {
 .loading {
   padding: 1.2rem 1.6rem;
 }
+
+/* ---------- Diplomacy ---------- */
+
+.diplomacy {
+  width: min(860px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  padding: 1.2rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.diplomacy p {
+  margin: 0;
+}
+
+.proposals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(255, 207, 74, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 207, 74, 0.08);
+}
+
+.proposal {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.relations {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.relations th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 0 0.5rem 0.3rem;
+}
+
+.relations td {
+  padding: 0.55rem 0.5rem;
+  border-top: 1px solid var(--panel-border);
+  vertical-align: top;
+}
+
+.relations td.actions {
+  text-align: right;
+}
+
+.relations td.actions button + button {
+  margin-left: 0.4rem;
+}
+
+.relations .confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 300px;
+  text-align: right;
+}
+
+.status {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  margin-left: 0.4rem;
+}
+
+.relations .status {
+  margin-left: 0;
+}
+
+.status.war {
+  background: rgba(255, 91, 79, 0.2);
+  color: #ff9b93;
+}
+
+.status.peace {
+  background: rgba(111, 195, 255, 0.18);
+  color: #9fd6ff;
+}
+
+.status.alliance {
+  background: rgba(57, 215, 122, 0.2);
+  color: #7fe9a8;
+}
+
+.trust {
+  width: 120px;
+  height: 6px;
+  margin: 0.45rem 0 0.25rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.trust > div {
+  height: 100%;
+  background: linear-gradient(90deg, #ff5b4f, #ffcf4a 50%, #39d77a);
+  background-size: 120px 100%;
+}
+
+.badge.alert {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.toast.notice {
+  background: rgba(16, 22, 31, 0.92);
+  border: 1px solid rgba(255, 207, 74, 0.5);
+  animation: toast-in 0.25s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+
+/* ---------- Dialogs: menu, settings, help ---------- */
+
+.dialog {
+  padding: 1.3rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.dialog h2,
+.dialog h3,
+.dialog p {
+  margin: 0;
+}
+
+.dialog .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+}
+
+.dialog input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.settings {
+  width: min(440px, 94vw);
+}
+
+.game-menu {
+  width: min(320px, 92vw);
+  text-align: center;
+}
+
+.game-menu button {
+  padding: 0.6rem;
+}
+
+.help {
+  width: min(900px, 96vw);
+}
+
+.help-columns {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.help-columns h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0.2rem 0 0.4rem;
+}
+
+.help-columns ol {
+  margin: 0 0 0.6rem;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.help-columns p + p {
+  margin-top: 0.4rem;
+}
+
+.keys {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.6rem;
+}
+
+.keys td {
+  padding: 0.22rem 0;
+  font-size: 0.85rem;
+}
+
+.keys td:last-child {
+  text-align: right;
+}
+
+/* ---------- Title screen ---------- */
+
+.menu-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  max-height: 100vh;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.menu-card .continue {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.7rem;
+  font-size: 1.05rem;
+}
+
+.menu-card .continue .small {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.menu-links {
+  display: flex;
+  justify-content: center;
+  gap: 0.3rem;
+  margin-top: -0.4rem;
+}
+
+.menu-card.saves {
+  width: min(460px, 92vw);
+}
+
+.menu-card.saves h2 {
+  margin: 0;
+}
+
+.save-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.save-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.save-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.save-info strong {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.loading-screen {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: var(--bg);
+}

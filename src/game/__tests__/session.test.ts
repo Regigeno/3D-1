@@ -160,4 +160,13 @@ describe("GameSession", () => {
     expect(session.lastError).toMatch(/neighboring/);
     expect(session.state).toBe(before);
   });
+
+  it("starts a preset map as the chosen faction", () => {
+    const session = GameSession.newRandomGame({ map: "fantasy-earth", seed: 4, provinces: 30, factions: 2, humanFaction: "teal" });
+    expect(session.state.scenario.provinces).toHaveLength(56);
+    expect(session.state.factionOrder).toHaveLength(6);
+    expect(session.viewer).toBe("teal");
+    expect(Object.values(session.state.factions).filter((f) => f.controller === "human").map((f) => f.id)).toEqual(["teal"]);
+    expect(session.isHumanTurn).toBe(true);
+  });
 });

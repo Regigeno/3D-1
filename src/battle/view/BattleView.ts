@@ -26,6 +26,9 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { BattleResult } from "../../engine";
 import { FIELD_LENGTH, FIELD_WIDTH, groundHeight, type ArenaLayout } from "../arena";
 import { STEP_SECONDS, type BattleSim, type Projectile, type Soldier } from "../sim";
+import { sound, type SoundKind } from "../../audio/sound";
+import type { GraphicsQuality } from "../../game/settings";
+import { applyQuality } from "../../render/quality";
 import { buildUnitModel, projectileMaterial, sharedGeometry as G, sharedMaterials as M, type UnitRig } from "./models";
 
 export const BATTLE_SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
@@ -343,9 +346,35 @@ export class BattleView {
 
   private handleEffects(): void {
     for (const e of this.sim.effects) {
-      if (e.kind === "explosion") this.spawnExplosion(e.at, e.radius, e.magic);
-      else if (e.kind === "beam") this.spawnBeam(e.from, e.to, e.heavy);
+      if (e.kind === "explosion") {
+        this.spawnExplosion(e.at, e.radius, e.magic);
+        this.playAt(e.magic ? "magic" : "explosion", e.at);
+        if (e.magic) this.playAt("explosion", e.at, 0.5);
+      } else if (e.kind === "beam") {
+        this.spawnBeam(e.from, e.to, e.heavy);
+        this.playAt("beam", e.from, e.heavy ? 1 : 0.6);
+      } else if (e.kind === "melee") {
+        const s = this.sim.soldiers[e.attacker];
+        if (s) this.playAt("melee", s.pos, 0.7);
+      } else if (e.kind === "shot") {
+        const s = this.sim.soldiers[e.shooter];
+        if (!s) continue;
+        const era = s.unit.era;
+        this.playAt(era === "modern" || era === "futuristic" ? "gun" : era === "fantastical" ? "magic" : "bow", s.pos, 0.6);
+      }
     }
+  }
+
+  /** Battle sounds fade with distance from the camera and get quieter at high speed, when there are many more of them. */
+  private playAt(kind: SoundKind, at: { x: number; y: number; z: number }, gain = 1): void {
+    const distance = this.camera.position.distanceTo(new Vector3(at.x, at.y, at.z));
+    const falloff = Math.min(1, Math.max(0, 1.3 - distance / 80));
+    sound.play(kind, gain * falloff * (this.speed > 1 ? 1 / Math.sqrt(this.speed) : 1));
+  }
+
+  setQuality(quality: GraphicsQuality): void {
+    applyQuality(this.renderer, this.scene, quality);
+    this.resize();
   }
 
   private spawnExplosion(at: { x: number; y: number; z: number }, radius: number, magic: boolean): void {
