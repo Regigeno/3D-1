@@ -68,7 +68,6 @@ export function BattleReport({ session, report }: { session: GameSession; report
           <Side session={session} title="Attacker" faction={battle.attacker.faction} list={rows(battle.attacker.squads, result.attackerSurvivors)} />
           <Side session={session} title="Defender" faction={battle.defender.faction} list={rows(battle.defender.squads, result.defenderSurvivors)} />
         </div>
-        <p className="muted small">Battles are auto-resolved for now. The 3D physics battle comes in a later build step.</p>
         <button className="primary" onClick={() => session.dismissBattleReport()} autoFocus>
           Continue
         </button>

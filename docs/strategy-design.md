@@ -271,6 +271,42 @@ etc.).
 - About 150–200 soldiers per battle.
 - Simplified physics for units far from the camera.
 
+### 9.6 As built in step 6
+
+- **Engine.** Rapier's deterministic build
+  (`@dimforge/rapier3d-deterministic-compat`), loaded in the background while
+  the menu is open. The simulation runs at a fixed 30 steps per second with a
+  2-minute limit. Watching only changes how fast steps run and interpolates
+  between them for drawing, so Watch, "Skip to result" and Skip all produce the
+  same outcome.
+- **Soldiers.** Each soldier is an upright capsule steered by velocity, with
+  size, speed and reach per unit: infantry is small, artillery and specials
+  are large, and drones, griffins and dragons fly. On death a soldier's
+  rotation is unlocked and it gets a shove, so it topples as a simple ragdoll.
+  Corpses stay on the field as obstacles and freeze after a few seconds to
+  keep the simulation cheap.
+- **Combat.** Melee units hit whatever is in reach. Ranged units fire real
+  projectiles that fly, drop and can miss. Artillery lobs shells that explode
+  with splash and knockback. Beam weapons hit instantly, and railguns pierce
+  through a line. Targeting favors counters and wounded enemies. Damage, armor
+  and magic come from the same unit data as the rest of the game.
+- **Deployment.** Bands by type: infantry front, ranged behind, cavalry on the
+  flanks, artillery at the rear, special in the center. Defending melee units
+  hold their ground until the enemy closes in or 10 seconds pass.
+- **Arenas.** 64 × 84 m. Forest has trees, hills and desert have mounds,
+  mountains have rocks and slopes, and coast has water off one side. A
+  defender with a Fort gets a palisade with gaps in front of its lines.
+- **Ending.** A side is wiped out, or it routs once it has fallen below 12% of
+  its soldiers while the enemy is above 40% (after the first 8 seconds). On
+  timeout the defender holds.
+- **Cost.** A full 150-soldier battle takes about 0.1–0.5 s headless. Battles
+  between computer factions run headless between AI moves, without freezing
+  the page.
+- **Estimates.** The quick formula from step 3 no longer resolves any battle.
+  It remains only as the AI's way of estimating its odds before it attacks,
+  and as a fast resolver in engine unit tests. In tests it agrees with the
+  physics result in about 95% of random battles.
+
 ## 10. Victory Conditions
 
 Chosen at setup:
@@ -471,7 +507,7 @@ games on Easy, 60% on Normal, and 35% on Hard.
 1. **Rules engine.** Game state, commands, seeded RNG, unit tests. No graphics.
 2. **Map view.** Three.js board, province selection, army figurines.
 3. **Economy and recruitment.** Playable loop with a temporary placeholder
-   battle resolver (removed in step 6).
+   battle resolver (replaced in step 6; the AI keeps it to estimate odds).
 4. **Research grid and unit roster.** Start with Prehistoric and Ancient for
    all five types.
 5. **Opponent AI and victory conditions.**

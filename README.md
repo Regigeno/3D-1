@@ -20,9 +20,10 @@ with *Totally Accurate Battle Simulator*-style physics battles. See
   recruit counters, attack, and make and break treaties, all without seeing
   through fog of war. Pick Easy/Normal/Hard and a victory condition
   (domination, capitals, or score after a turn limit) in the menu.
-
-Battles currently resolve instantly with a placeholder (step 6 adds the physics
-simulation).
+- Step 6, physics battles: done. Every battle is a Rapier physics simulation
+  with automatic formations, terrain arenas, forts, projectiles, explosions,
+  and ragdoll deaths. When you fight, choose Watch (free camera, 0.25×–4×
+  speed, follow a soldier) or Skip (same simulation, same result).
 
 ## Controls
 
@@ -36,6 +37,19 @@ simulation).
 | Research | R |
 | Deselect | Esc |
 | End turn | Enter |
+
+In a battle:
+
+| Action | Input |
+|---|---|
+| Watch / Skip (at the prompt) | W / S or Enter |
+| Rotate / pan / zoom | Left drag / right drag / scroll |
+| Pause | Space |
+| Speed 0.25×, 0.5×, 1×, 2×, 4× | 1–5 |
+| Follow a soldier | Click it, or F for a random one |
+| Free camera | Esc |
+| Skip to result | S |
+| Continue after the battle | Enter |
 
 ## Development
 
@@ -64,6 +78,8 @@ src/engine/          Rules engine (pure TypeScript, no DOM)
   queries.ts         Read-only helpers (income, fog of war, score, ...)
   ai/                Opponent AI: fog-aware evaluation and the turn planner
   data/              Unit roster and rule constants
+src/battle/          Physics battles (Rapier): arenas, deployment, simulation
+  view/              Three.js battle view and unit models
 src/game/            Session: current game, selection, event log, AI turns
 src/render/          Three.js board, terrain props, army figurines, MapView
 src/ui/              React overlay: menu, top bar, province panel, event log

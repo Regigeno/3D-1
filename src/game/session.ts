@@ -2,11 +2,15 @@ import {
   applyCommand,
   createGame,
   generateRandomScenario,
+  nextAiCommand,
   placeholderResolver,
-  playAiTurn,
+  rejectAiCommand,
   resolveBattle,
   scenarioProvince,
+  startAiTurn,
   visibleProvinces,
+  type AiTurn,
+  type BattleResolver,
   type BattleResult,
   type Command,
   type Difficulty,
@@ -54,7 +58,19 @@ export interface BattleReport {
   result: BattleResult;
 }
 
+export interface SessionOptions {
+  /** Settles battles that are not watched. Defaults to the quick resolver, which tests use. */
+  resolver?: BattleResolver;
+  /**
+   * Lets computer turns run in slices so the screen can repaint between them,
+   * e.g. `(fn) => setTimeout(fn, 0)`. Without it they run to completion at once.
+   */
+  schedule?: (fn: () => void) => void;
+}
+
 const MAX_LOG = 60;
+const AI_SLICE_MS = 30;
+const MAX_AI_COMMANDS = 400;
 
 /**
  * Owns the current game for the UI: applies commands, keeps the selection and
@@ -72,23 +88,31 @@ export class GameSession {
 
   private listeners = new Set<() => void>();
   private nextLogId = 1;
+  private readonly resolver: BattleResolver;
+  private readonly schedule: SessionOptions["schedule"];
+  private aiTurn: AiTurn | null = null;
+  private aiCommands = 0;
+  private aiVisible = new Set<string>();
+  private aiScheduled = false;
 
-  constructor(state: GameState, initialEvents: GameEvent[] = []) {
+  constructor(state: GameState, initialEvents: GameEvent[] = [], options: SessionOptions = {}) {
     this.state = state;
+    this.resolver = options.resolver ?? placeholderResolver;
+    this.schedule = options.schedule;
     this.record(initialEvents);
-    this.playAiTurns();
+    this.proceed();
   }
 
-  static newRandomGame(settings: NewGameSettings): GameSession {
+  static newRandomGame(settings: NewGameSettings, options: SessionOptions = {}): GameSession {
     const scenario = generateRandomScenario({
       seed: settings.seed,
       provinces: settings.provinces,
       factions: settings.factions,
     });
-    return GameSession.fromScenario(scenario, settings.seed, settings);
+    return GameSession.fromScenario(scenario, settings.seed, settings, options);
   }
 
-  static fromScenario(scenario: Scenario, seed: number, rules: Partial<GameRules> = {}): GameSession {
+  static fromScenario(scenario: Scenario, seed: number, rules: Partial<GameRules> = {}, options: SessionOptions = {}): GameSession {
     const human = scenario.factions[0]!.id;
     const { state, events } = createGame(scenario, {
       seed,
@@ -96,7 +120,7 @@ export class GameSession {
       victory: rules.victory ?? DEFAULT_RULES.victory,
       controllers: { [human]: "human" },
     });
-    return new GameSession(state, events);
+    return new GameSession(state, events, options);
   }
 
   subscribe = (listener: () => void): (() => void) => {
@@ -133,12 +157,9 @@ export class GameSession {
     this.lastError = null;
     this.state = result.state;
     this.record(result.events, actor);
-    this.resolveBattles(actor);
+    if (command.kind === "end-turn") this.selection = { province: null, army: null };
+    this.proceed();
     this.fixSelection();
-    if (command.kind === "end-turn") {
-      this.selection = { province: null, army: null };
-      this.playAiTurns();
-    }
     this.emit();
     return true;
   }
@@ -205,43 +226,96 @@ export class GameSession {
     this.emit();
   }
 
-  /** Settles any pending battle. Battles a human fought are queued as reports. */
-  private settle = (state: GameState): { state: GameState; events: GameEvent[] } => {
-    // Placeholder until physics battles (build step 6): resolve instantly.
-    const events: GameEvent[] = [];
-    let current = state;
-    while (current.pendingBattle) {
-      const battle = current.pendingBattle;
-      const result = placeholderResolver(battle, scenarioProvince(current, battle.province).terrain);
-      const resolved = resolveBattle(current, result);
-      if (!resolved.ok) throw new Error(resolved.error);
-      const humanInvolved = [battle.attacker.faction, battle.defender.faction].some(
-        (f) => f && current.factions[f]?.controller === "human",
-      );
-      if (humanInvolved) this.battleReports.push({ battle, result });
-      current = resolved.state;
-      events.push(...resolved.events);
-    }
-    return { state: current, events };
-  };
-
-  private resolveBattles(actor: string): void {
-    if (!this.state.pendingBattle) return;
-    const visibleBefore = visibleProvinces(this.state, this.viewer);
-    const { state, events } = this.settle(this.state);
-    this.state = state;
-    this.record(events, actor, visibleBefore);
+  /** A battle a human fights in, waiting for the player to Watch or Skip it. */
+  get battlePrompt(): PendingBattle | null {
+    const battle = this.state.pendingBattle;
+    return battle && this.humanFights(battle) ? battle : null;
   }
 
-  private playAiTurns(): void {
-    let guard = 0;
-    while (!this.state.winner && !this.defeated && this.state.factions[this.state.activeFaction]?.controller === "ai" && guard++ < 100) {
-      const actor = this.state.activeFaction;
-      const visibleBefore = visibleProvinces(this.state, this.viewer);
-      const { state, events } = playAiTurn(this.state, this.settle);
-      this.state = state;
-      this.record(events, actor, visibleBefore);
+  /** Resolves the prompted battle headless. Same simulation as watching it. */
+  skipBattle(): void {
+    const battle = this.battlePrompt;
+    if (!battle) return;
+    this.finishBattle(this.resolver(battle, scenarioProvince(this.state, battle.province).terrain));
+  }
+
+  /** Applies the result of the prompted battle, e.g. once the player has watched it. */
+  finishBattle(result: BattleResult): void {
+    const battle = this.battlePrompt;
+    if (!battle) return;
+    this.applyBattleResult(battle, result);
+    this.fixSelection();
+    this.proceed();
+    this.emit();
+  }
+
+  /** True while computer factions are still taking their turns in the background. */
+  get aiBusy(): boolean {
+    return this.aiScheduled;
+  }
+
+  private humanFights(battle: PendingBattle): boolean {
+    return [battle.attacker.faction, battle.defender.faction].some((f) => f && this.state.factions[f]?.controller === "human");
+  }
+
+  private applyBattleResult(battle: PendingBattle, result: BattleResult): void {
+    const actor = this.state.activeFaction;
+    const visibleBefore = visibleProvinces(this.state, this.viewer);
+    const resolved = resolveBattle(this.state, result);
+    if (!resolved.ok) throw new Error(resolved.error);
+    if (this.humanFights(battle)) this.battleReports.push({ battle, result });
+    this.state = resolved.state;
+    this.record(resolved.events, actor, visibleBefore);
+  }
+
+  /**
+   * Moves the game forward until a human has to act: settles battles between
+   * computer factions, and plays computer turns. Stops at a battle a human
+   * fights in, which waits for Watch or Skip.
+   */
+  private proceed(): void {
+    const deadline = this.schedule ? performance.now() + AI_SLICE_MS : Infinity;
+    this.aiScheduled = false;
+    while (!this.state.winner && !this.defeated) {
+      const battle = this.state.pendingBattle;
+      if (battle) {
+        if (this.humanFights(battle)) return;
+        this.applyBattleResult(battle, this.resolver(battle, scenarioProvince(this.state, battle.province).terrain));
+        continue;
+      }
+      if (this.state.factions[this.state.activeFaction]?.controller !== "ai") {
+        this.aiTurn = null;
+        return;
+      }
+      if (performance.now() > deadline) {
+        this.aiScheduled = true;
+        this.schedule!(() => {
+          this.proceed();
+          this.emit();
+        });
+        return;
+      }
+      this.stepAi();
     }
+  }
+
+  private stepAi(): void {
+    if (!this.aiTurn || this.aiTurn.me !== this.state.activeFaction) {
+      this.aiTurn = startAiTurn(this.state);
+      this.aiCommands = 0;
+      this.aiVisible = visibleProvinces(this.state, this.viewer);
+    }
+    const actor = this.state.activeFaction;
+    const command: Command = ++this.aiCommands > MAX_AI_COMMANDS ? { kind: "end-turn" } : nextAiCommand(this.state, this.aiTurn);
+    const result = applyCommand(this.state, command);
+    if (!result.ok) {
+      if (command.kind === "end-turn") throw new Error(`AI could not end its turn: ${result.error}`);
+      rejectAiCommand(this.aiTurn, command);
+      return;
+    }
+    this.state = result.state;
+    this.record(result.events, actor, this.aiVisible);
+    if (command.kind === "end-turn") this.aiTurn = null;
   }
 
   private fixSelection(): void {

@@ -55,6 +55,8 @@ const OUTLINE_COLOR: Record<MoveKind | "selected", string> = {
 };
 
 export class MapView {
+  /** Stops drawing, e.g. while a battle is shown on top of the map. */
+  paused = false;
   private renderer: WebGLRenderer;
   private scene = new Scene();
   private camera: PerspectiveCamera;
@@ -290,6 +292,7 @@ export class MapView {
   private loop = (timestamp?: number): void => {
     this.frame = requestAnimationFrame(this.loop);
     this.timer.update(timestamp);
+    if (this.paused) return;
     const dt = Math.min(this.timer.getDelta(), 0.1);
     const t = this.timer.getElapsed();
 

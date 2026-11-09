@@ -122,6 +122,8 @@ export interface PendingBattle {
   defender: BattleSide;
   /** Where each defender squad came from, by index, so survivors can be written back. */
   defenderSources: SquadSource[];
+  /** The defender holds a Fort here, which gives them a palisade on the battlefield. */
+  fortified?: boolean;
 }
 
 export interface GameOptions {

@@ -49,14 +49,35 @@ describe("GameSession", () => {
     expect(session.selection).toEqual({ province: "D", army: null });
   });
 
-  it("resolves battles immediately so play can continue", () => {
+  it("asks the player to watch or skip their battles, then carries on", () => {
     const session = readySession();
     session.state.provinces.B!.owner = "blue";
     session.state.provinces.B!.buildings.push("fort");
     session.selectArmy(redArmy(session).id);
     session.clickProvince("B");
+    expect(session.battlePrompt?.province).toBe("B");
+    expect(session.dispatch({ kind: "end-turn" })).toBe(false);
+    session.skipBattle();
+    expect(session.battlePrompt).toBeNull();
     expect(session.state.pendingBattle).toBeNull();
     expect(session.log.some((e) => e.text.startsWith("Battle at B"))).toBe(true);
+    expect(session.dispatch({ kind: "end-turn" })).toBe(true);
+  });
+
+  it("applies the result of a watched battle", () => {
+    const session = readySession();
+    session.state.provinces.B!.owner = "blue";
+    session.state.provinces.B!.buildings.push("fort");
+    session.selectArmy(redArmy(session).id);
+    session.clickProvince("B");
+    const battle = session.battlePrompt!;
+    session.finishBattle({
+      winner: "attacker",
+      attackerSurvivors: battle.attacker.squads.map((s) => s.soldiers),
+      defenderSurvivors: battle.defender.squads.map(() => 0),
+    });
+    expect(session.state.provinces.B!.owner).toBe("red");
+    expect(redArmy(session).location).toBe("B");
   });
 
   it("keeps a battle report for battles a human fought", () => {
@@ -65,6 +86,7 @@ describe("GameSession", () => {
     session.state.provinces.B!.buildings.push("fort");
     session.selectArmy(redArmy(session).id);
     session.clickProvince("B");
+    session.skipBattle();
     const report = session.battleReport!;
     expect(report.battle.province).toBe("B");
     expect(report.result.attackerSurvivors).toHaveLength(report.battle.attacker.squads.length);
@@ -80,8 +102,26 @@ describe("GameSession", () => {
     blue.location = "B";
     blue.squads = Array.from({ length: 8 }, () => ({ type: "cavalry" as const, era: "medieval" as const, soldiers: 3 }));
     session.dispatch({ kind: "end-turn" });
+    expect(session.state.activeFaction).toBe("blue");
+    expect(session.battlePrompt?.province).toBe("A");
+    expect(session.battlePrompt?.attacker.faction).toBe("blue");
+    session.skipBattle();
     expect(session.battleReport?.battle.province).toBe("A");
-    expect(session.battleReport?.battle.attacker.faction).toBe("blue");
+    // Blue's turn picks up where it paused.
+    expect(session.battlePrompt === null || session.battlePrompt.province !== "A").toBe(true);
+  });
+
+  it("runs computer turns in slices when given a scheduler", () => {
+    const queue: Array<() => void> = [];
+    const session = GameSession.newRandomGame({ seed: 8, provinces: 40, factions: 6 }, { schedule: (fn) => queue.push(fn) });
+    session.dispatch({ kind: "end-turn" });
+    let slices = 0;
+    while (queue.length && slices < 1000) {
+      queue.shift()!();
+      slices++;
+    }
+    expect(session.aiBusy).toBe(false);
+    expect(session.isHumanTurn || session.battlePrompt !== null || session.defeated).toBe(true);
   });
 
   it("hides what computer factions do out of sight", () => {

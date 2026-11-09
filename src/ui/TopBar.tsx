@@ -60,7 +60,7 @@ export function TopBar({ session, onQuit, onToggleTreasury, onOpenResearch }: Pr
       <button className="ghost" onClick={onQuit}>
         Menu
       </button>
-      <button className="primary" disabled={!session.isHumanTurn} onClick={() => session.dispatch({ kind: "end-turn" })}>
+      <button className="primary" disabled={!session.isHumanTurn || !!session.battlePrompt} onClick={() => session.dispatch({ kind: "end-turn" })}>
         End turn
       </button>
     </div>

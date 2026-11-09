@@ -1,4 +1,4 @@
-import { MILITARY_TYPES, unitFor, type Army, type Era, type GameEvent, type GameState, type MilitaryType, type Squad } from "../engine";
+import { MILITARY_TYPES, unitFor, type Army, type Era, type GameEvent, type GameState, type MilitaryType, type Squad, type Terrain } from "../engine";
 
 export const TYPE_LABEL: Record<MilitaryType, string> = {
   infantry: "Infantry",
@@ -39,10 +39,24 @@ export function compositionLabel(squads: Squad[]): string {
   return MILITARY_TYPES.map((t) => `${squads.filter((s) => s.type === t).length} ${TYPE_SHORT[t]}`).join(" / ");
 }
 
+export const TERRAIN_LABEL: Record<Terrain, string> = {
+  plains: "Plains",
+  forest: "Forest",
+  hills: "Hills",
+  mountains: "Mountains",
+  desert: "Desert",
+  coast: "Coast",
+  wasteland: "Wasteland",
+};
+
 /** Unit names with squad counts, e.g. [{ name: "Clubman", squads: 2, soldiers: 9 }]. */
 export function armyBreakdown(army: Army): Array<{ name: string; type: MilitaryType; squads: number; soldiers: number }> {
+  return squadBreakdown(army.squads);
+}
+
+export function squadBreakdown(squads: Squad[]): Array<{ name: string; type: MilitaryType; squads: number; soldiers: number }> {
   const groups = new Map<string, { name: string; type: MilitaryType; squads: number; soldiers: number }>();
-  for (const s of army.squads) {
+  for (const s of squads) {
     const unit = unitFor(s.type, s.era);
     const g = groups.get(unit.id) ?? { name: unit.name, type: s.type, squads: 0, soldiers: 0 };
     g.squads += 1;

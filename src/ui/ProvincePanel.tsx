@@ -1,20 +1,10 @@
 import { armiesAt, garrisonSquadCount, isAllied, provinceIncome, scenarioProvince, visibleProvinces } from "../engine";
-import { factionName } from "../game/describe";
+import { TERRAIN_LABEL, factionName } from "../game/describe";
 import { BUILDING_INFO } from "../game/economy";
 import type { GameSession, MoveKind } from "../game/session";
 import { ArmyCard } from "./ArmyCard";
 import { BuildSection } from "./BuildSection";
 import { RecruitSection } from "./RecruitSection";
-
-const TERRAIN_LABEL: Record<string, string> = {
-  plains: "Plains",
-  forest: "Forest",
-  hills: "Hills",
-  mountains: "Mountains",
-  desert: "Desert",
-  coast: "Coast",
-  wasteland: "Wasteland",
-};
 
 interface Props {
   session: GameSession;
