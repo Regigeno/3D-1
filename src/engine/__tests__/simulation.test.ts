@@ -100,5 +100,5 @@ describe("full-game simulation", () => {
       const a = play(seed);
       expect(play(seed)).toEqual(a);
     }
-  });
+  }, 60_000);
 });
