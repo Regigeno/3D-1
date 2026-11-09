@@ -1,0 +1,50 @@
+import { factionIncome, factionUpkeep, type ResourceKind } from "../engine";
+import type { GameSession } from "../game/session";
+
+const RESOURCES: Array<{ key: ResourceKind; label: string; icon: string }> = [
+  { key: "gold", label: "Gold", icon: "◆" },
+  { key: "knowledge", label: "Knowledge", icon: "✦" },
+  { key: "mana", label: "Mana", icon: "✧" },
+  { key: "energy", label: "Energy", icon: "⚡" },
+];
+
+export function TopBar({ session, onQuit }: { session: GameSession; onQuit(): void }) {
+  const { state } = session;
+  const me = state.factions[session.viewer]!;
+  const income = factionIncome(state, me.id);
+  const upkeep = factionUpkeep(state, me.id);
+  const active = state.factions[state.activeFaction]!;
+
+  return (
+    <div className="topbar panel">
+      <div className="faction">
+        <span className="swatch" style={{ background: me.color }} />
+        <strong>{me.name}</strong>
+      </div>
+      <div className="turn">Turn {state.turn}</div>
+      <div className="resources">
+        {RESOURCES.map(({ key, label, icon }) => {
+          const delta = income[key] - (key === "gold" ? upkeep : 0);
+          return (
+            <div key={key} className={`resource ${key}`} title={key === "gold" ? `${label}: +${income.gold} income, -${upkeep} upkeep` : label}>
+              <span className="icon">{icon}</span>
+              <span>{me.resources[key]}</span>
+              <span className={delta < 0 ? "delta negative" : "delta"}>
+                {delta >= 0 ? "+" : ""}
+                {delta}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="spacer" />
+      {!session.isHumanTurn && !state.winner && <span className="muted">{active.name} is thinking…</span>}
+      <button className="ghost" onClick={onQuit}>
+        Menu
+      </button>
+      <button className="primary" disabled={!session.isHumanTurn} onClick={() => session.dispatch({ kind: "end-turn" })}>
+        End turn
+      </button>
+    </div>
+  );
+}

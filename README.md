@@ -6,7 +6,24 @@ with *Totally Accurate Battle Simulator*-style physics battles. See
 
 ## Status
 
-Step 1 of the build order is done: the rules engine (no graphics yet).
+- Step 1, rules engine: done.
+- Step 2, 3D map view: done. Random island maps, province selection, army
+  figurines, moving and capturing, and fog of war.
+
+Battles currently resolve instantly with a placeholder (step 6 adds the physics
+simulation), and computer factions pass their turns (step 5 adds the AI).
+
+## Controls
+
+| Action | Input |
+|---|---|
+| Select a province or army | Left click |
+| Move or attack with the selected army | Left click a highlighted province (green = move, amber = capture, red = attack) |
+| Pan | Left drag |
+| Rotate | Right drag |
+| Zoom | Scroll |
+| Deselect | Esc |
+| End turn | Enter |
 
 ## Development
 
@@ -15,8 +32,11 @@ npm install
 npm run dev        # local dev server
 npm test           # unit tests and full-game simulations
 npm run typecheck
-npm run build      # static build in dist/, ready for GitHub Pages
+npm run build      # static build in dist/
 ```
+
+Pushing to `main` deploys to GitHub Pages through `.github/workflows/pages.yml`.
+In the repository settings, set **Pages > Source** to **GitHub Actions** once.
 
 ## Layout
 
@@ -27,9 +47,13 @@ src/engine/          Rules engine (pure TypeScript, no DOM)
   commands.ts        applyCommand(): the only way to change game state
   turn.ts            Income, upkeep, desertion, eliminations, victory
   battle.ts          Battle setup, result write-back, placeholder resolver
-  mapgen.ts          Seeded random map generator
+  mapgen.ts          Seeded random island generator (Voronoi provinces)
+  geometry.ts        Voronoi cells and polygon helpers
   queries.ts         Read-only helpers (income, fog of war, score, ...)
   data/              Unit roster and rule constants
+src/game/            Session: current game, selection, event log, AI turns
+src/render/          Three.js board, terrain props, army figurines, MapView
+src/ui/              React overlay: menu, top bar, province panel, event log
 ```
 
 Every action goes through `applyCommand(state, command)`, which returns a new
