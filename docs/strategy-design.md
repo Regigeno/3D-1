@@ -400,6 +400,23 @@ Utility scoring, not machine learning:
 6. **Physics battles.** Rapier + ragdolls, auto-deployment, Watch/Skip.
 7. **Diplomacy, saves, polish, GitHub Pages deployment.**
 
+### 14.1 Rules decided while building step 1
+
+- Each faction starts with its capital, a Barracks there, 30 Gold, and an army
+  of 2 Prehistoric Infantry + 1 Prehistoric Ranged. All factions start at war.
+- Provinces with no owner are neutral; walking into one captures it.
+- A province with no army is defended by a garrison of infantry at the owner's
+  best Infantry era: 2 squads in a capital, 3 with a Fort (both stack).
+- An army with full movement can always make one move, so 3-cost mountains
+  are reachable with 2 movement points.
+- Recruited squads join an army already in the province if it has room;
+  otherwise they form a new army that cannot move until next turn.
+- A defender that loses a battle retreats to a neighboring friendly province;
+  with nowhere to go, it is destroyed.
+- A faction with no provinces is eliminated and its armies disband.
+- Proposals are answered on the target's turn and expire when the proposer's
+  next turn begins.
+
 ## 15. Future (not now)
 
 - **Local hotseat multiplayer.** Supported by the architecture in section 3.
