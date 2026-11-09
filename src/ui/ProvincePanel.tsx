@@ -1,14 +1,10 @@
-import {
-  armiesAt,
-  garrisonSquadCount,
-  isAllied,
-  provinceIncome,
-  rules,
-  scenarioProvince,
-  visibleProvinces,
-} from "../engine";
-import { armyBreakdown, compositionLabel, factionName } from "../game/describe";
+import { armiesAt, garrisonSquadCount, isAllied, provinceIncome, scenarioProvince, visibleProvinces } from "../engine";
+import { factionName } from "../game/describe";
+import { BUILDING_INFO } from "../game/economy";
 import type { GameSession, MoveKind } from "../game/session";
+import { ArmyCard } from "./ArmyCard";
+import { BuildSection } from "./BuildSection";
+import { RecruitSection } from "./RecruitSection";
 
 const TERRAIN_LABEL: Record<string, string> = {
   plains: "Plains",
@@ -40,6 +36,7 @@ export function ProvincePanel({ session, targets, onFocus }: Props) {
   const armies = armiesAt(state, id).filter((a) => visible || isAllied(state, session.viewer, a.owner));
   const garrison = garrisonSquadCount(state, id);
   const selectedArmy = selection.army ? state.armies[selection.army] : undefined;
+  const managing = session.isHumanTurn && province.owner === state.activeFaction;
 
   return (
     <aside className="sidepanel panel">
@@ -73,7 +70,7 @@ export function ProvincePanel({ session, targets, onFocus }: Props) {
           </>
         )}
         <dt>Buildings</dt>
-        <dd>{province.buildings.length ? province.buildings.join(", ") : "None"}</dd>
+        <dd>{province.buildings.length ? province.buildings.map((b) => BUILDING_INFO[b].name).join(", ") : "None"}</dd>
         {garrison > 0 && (
           <>
             <dt>Garrison</dt>
@@ -82,48 +79,26 @@ export function ProvincePanel({ session, targets, onFocus }: Props) {
         )}
       </dl>
 
-      <h3>Armies</h3>
-      {!visible && <p className="muted">Hidden by fog of war.</p>}
-      {visible && armies.length === 0 && <p className="muted">No armies here.</p>}
-      {armies.map((army) => {
-        const armyOwner = state.factions[army.owner]!;
-        const selected = army.id === selection.army;
-        const mine = army.owner === state.activeFaction && session.isHumanTurn;
-        return (
-          <button key={army.id} className={`army-card ${selected ? "selected" : ""}`} onClick={() => session.selectArmy(army.id)}>
-            <div className="army-head">
-              <span className="swatch" style={{ background: armyOwner.color }} />
-              <strong>{army.squads.length} squads</strong>
-              {mine && (
-                <span className="moves">
-                  Moves {army.movementLeft}/{rules.ARMY_MOVEMENT}
-                </span>
-              )}
-            </div>
-            <div className="composition">{compositionLabel(army.squads)}</div>
-            <ul className="units">
-              {armyBreakdown(army).map((u) => (
-                <li key={u.name}>
-                  <span>{u.name}</span>
-                  <span className="muted">
-                    ×{u.squads} ({u.soldiers})
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </button>
-        );
-      })}
+      <section>
+        <h3>Armies</h3>
+        {!visible && <p className="muted">Hidden by fog of war.</p>}
+        {visible && armies.length === 0 && <p className="muted">No armies here.</p>}
+        {armies.map((army) => (
+          <ArmyCard key={army.id} session={session} army={army} selected={army.id === selection.army} />
+        ))}
+        {selectedArmy && selectedArmy.owner === state.activeFaction && session.isHumanTurn && (
+          <p className="muted small">
+            {targets.size > 0
+              ? "Click a highlighted province: green to move, amber to capture, red to attack."
+              : selectedArmy.movementLeft === 0
+                ? "This army has no movement left this turn."
+                : "No legal moves from here."}
+          </p>
+        )}
+      </section>
 
-      {selectedArmy && selectedArmy.owner === state.activeFaction && session.isHumanTurn && (
-        <p className="muted small">
-          {targets.size > 0
-            ? "Click a highlighted province: green to move, amber to capture, red to attack."
-            : selectedArmy.movementLeft === 0
-              ? "This army has no movement left this turn."
-              : "No legal moves from here."}
-        </p>
-      )}
+      {managing && province.buildings.includes("barracks") && <RecruitSection session={session} province={id} />}
+      {managing && <BuildSection session={session} province={id} />}
 
       <button className="ghost small" onClick={() => onFocus(id)}>
         Center camera

@@ -4,6 +4,8 @@ import { MapView } from "../render/MapView";
 import { EventLog } from "./EventLog";
 import { ProvincePanel } from "./ProvincePanel";
 import { TopBar } from "./TopBar";
+import { TreasuryPanel } from "./TreasuryPanel";
+import { BattleReport } from "./BattleReport";
 import { provinceName } from "../game/describe";
 
 interface Hover {
@@ -17,6 +19,7 @@ export function GameScreen({ session, onQuit }: { session: GameSession; onQuit()
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<MapView | null>(null);
   const [hover, setHover] = useState<Hover | null>(null);
+  const [showTreasury, setShowTreasury] = useState(false);
 
   const targets = useMemo(
     () => (session.selection.army ? session.moveTargets(session.selection.army) : new Map()),
@@ -45,8 +48,19 @@ export function GameScreen({ session, onQuit }: { session: GameSession; onQuit()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
+      if (session.battleReport) {
+        if (e.key === "Enter" || e.key === "Escape") {
+          e.preventDefault();
+          session.dismissBattleReport();
+        }
+        return;
+      }
       if (e.key === "Escape") session.clearSelection();
-      if (e.key === "Enter" && session.isHumanTurn) session.dispatch({ kind: "end-turn" });
+      if (e.key === "Enter" && session.isHumanTurn) {
+        // Otherwise Enter would also "click" whichever button was focused last.
+        e.preventDefault();
+        session.dispatch({ kind: "end-turn" });
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -57,7 +71,8 @@ export function GameScreen({ session, onQuit }: { session: GameSession; onQuit()
   return (
     <div className="game">
       <div className="map" ref={containerRef} />
-      <TopBar session={session} onQuit={onQuit} />
+      <TopBar session={session} onQuit={onQuit} onToggleTreasury={() => setShowTreasury((v) => !v)} />
+      {showTreasury && <TreasuryPanel session={session} onClose={() => setShowTreasury(false)} />}
       <ProvincePanel session={session} targets={targets} onFocus={(p) => viewRef.current?.focusProvince(p)} />
       <EventLog session={session} />
       {session.lastError && <div className="toast error">{session.lastError}</div>}
@@ -72,6 +87,7 @@ export function GameScreen({ session, onQuit }: { session: GameSession; onQuit()
           {targets.has(hover.province) && <span className={`tag ${targets.get(hover.province)}`}>{targets.get(hover.province)}</span>}
         </div>
       )}
+      {session.battleReport && !winner && <BattleReport session={session} report={session.battleReport} />}
       {winner && (
         <div className="overlay">
           <div className="panel victory">

@@ -161,6 +161,7 @@ export type Command =
   | { kind: "split"; army: string; squads: number[] }
   | { kind: "merge"; armies: string[] }
   | { kind: "upgrade-squad"; army: string; squad: number }
+  | { kind: "disband"; army: string; squads: number[] }
   | { kind: "diplomacy"; target: string; action: "propose-peace" | "propose-alliance" | "declare-war" }
   | { kind: "respond-proposal"; from: string; accept: boolean }
   | { kind: "end-turn" };
@@ -176,10 +177,18 @@ export type GameEvent =
   | { kind: "moved"; armyId: string; from: string; to: string }
   | { kind: "captured"; faction: string; province: string; previousOwner: string | null }
   | { kind: "battle-started"; battle: PendingBattle }
-  | { kind: "battle-resolved"; battleId: string; winner: "attacker" | "defender"; province: string }
+  | {
+      kind: "battle-resolved";
+      battleId: string;
+      winner: "attacker" | "defender";
+      province: string;
+      attacker: string | null;
+      defender: string | null;
+    }
   | { kind: "split"; armyId: string; newArmyId: string }
   | { kind: "merged"; into: string; removed: string[] }
   | { kind: "upgraded"; armyId: string; squadIndex: number; era: Era }
+  | { kind: "disbanded"; armyId: string; squads: Squad[] }
   | { kind: "relation-changed"; a: string; b: string; status: RelationStatus }
   | { kind: "proposal"; proposal: Proposal }
   | { kind: "proposal-rejected"; proposal: Proposal }

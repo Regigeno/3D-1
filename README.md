@@ -9,6 +9,9 @@ with *Totally Accurate Battle Simulator*-style physics battles. See
 - Step 1, rules engine: done.
 - Step 2, 3D map view: done. Random island maps, province selection, army
   figurines, moving and capturing, and fog of war.
+- Step 3, economy and recruitment: done. Recruit and build from the province
+  panel, split/merge/disband/upgrade armies, a treasury breakdown (click the
+  resource bar), and a battle report after every fight.
 
 Battles currently resolve instantly with a placeholder (step 6 adds the physics
 simulation), and computer factions pass their turns (step 5 adds the AI).

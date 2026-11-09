@@ -20,13 +20,13 @@ import {
   relationBetween,
   relationKey,
   scenarioProvince,
+  upgradeCost,
 } from "./queries";
 import { advanceToNextFaction, checkEliminations, checkVictory } from "./turn";
 import {
   MAIN_ERAS,
   type Command,
   type CommandResult,
-  type Cost,
   type GameEvent,
   type GameState,
   type MainEra,
@@ -201,14 +201,23 @@ function handle(state: GameState, me: string, cmd: Command, events: GameEvent[])
       if (squad.era === "fantastical") fail("Fantastical squads cannot be upgraded");
       const target = bestMainEra(state, me, squad.type);
       if (MAIN_ERAS.indexOf(target) <= MAIN_ERAS.indexOf(squad.era)) fail("No better era researched");
-      const oldCost = unitFor(squad.type, squad.era).cost;
-      const newCost = unitFor(squad.type, target).cost;
-      const cost: Cost = { ...newCost, gold: Math.max(1, (newCost.gold ?? 0) - (oldCost.gold ?? 0)) };
+      const cost = upgradeCost(squad, target);
       if (!canAfford(faction.resources, cost)) fail("Not enough resources");
       pay(faction.resources, cost);
       squad.era = target;
       squad.soldiers = SQUAD_SIZE[squad.type];
       events.push({ kind: "upgraded", armyId: army.id, squadIndex: cmd.squad, era: target });
+      return;
+    }
+
+    case "disband": {
+      const army = ownArmy(state, me, cmd.army);
+      const indices = [...new Set(cmd.squads)].sort((a, b) => b - a);
+      if (indices.length === 0) fail("Choose at least one squad");
+      if (indices.some((i) => i < 0 || i >= army.squads.length)) fail("Invalid squad index");
+      const removed = indices.map((i) => army.squads.splice(i, 1)[0]!).reverse();
+      if (army.squads.length === 0) delete state.armies[army.id];
+      events.push({ kind: "disbanded", armyId: army.id, squads: removed });
       return;
     }
 
