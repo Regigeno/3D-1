@@ -50,7 +50,7 @@ function ringProvinces(): PresetProvince[] {
         name: sector.names[slot + ring]!,
         x: Math.round((CENTER.x + radius * Math.sin(theta) + wobble(i, ring)) * 10) / 10,
         y: Math.round((CENTER.y - radius * Math.cos(theta) + wobble(i, ring + 2)) * 10) / 10,
-        terrain: capital?.terrain ?? (ring === 1 ? sector.terrain[2] : sector.terrain[i % 2]),
+        terrain: capital?.terrain ?? (ring === 1 ? sector.terrain[2] : sector.terrain[i % 2]!),
         income: capital ? 3 : ring === 0 ? 3 : 2,
         ...(special ? { special } : {}),
       });

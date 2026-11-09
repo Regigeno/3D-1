@@ -3,6 +3,7 @@ import { MAX_SQUADS_PER_ARMY, TYPE_BONUS, unitFor } from "../data/units";
 import {
   armiesAt,
   bestMainEra,
+  bordering,
   canAfford,
   factionIncome,
   factionUpkeep,
@@ -150,10 +151,6 @@ function neighborsOf(state: GameState, id: string): string[] {
   return scenarioProvince(state, id).neighbors;
 }
 
-function bordering(state: GameState, a: string, b: string): boolean {
-  return ownedProvinces(state, a).some((p) => neighborsOf(state, p).some((n) => state.provinces[n]?.owner === b));
-}
-
 function isFrontier(state: GameState, me: string, id: string): boolean {
   return neighborsOf(state, id).some((n) => {
     const owner = state.provinces[n]?.owner ?? null;
@@ -247,21 +244,20 @@ const diplomacy: Handler = (state, turn) => {
     }
   }
 
-  // Ask for peace when fighting on several fronts. Humans answer proposals in a later build step.
+  // Ask for peace when fighting on several fronts, or when outmatched by a neighbor.
   const borderWars = others.filter((f) => relationBetween(state, me, f)!.status === "war" && bordering(state, me, f));
-  if (borderWars.length >= 2 && (state.turn + state.factionOrder.indexOf(me)) % 4 === 0) {
-    const strongest = borderWars
-      .filter((f) => state.factions[f]!.controller === "ai")
-      .sort((a, b) => factionPower(state, b) - factionPower(state, a))[0];
-    if (strongest && factionPower(state, strongest) >= mine * 0.8) {
+  if (borderWars.length > 0 && (state.turn + state.factionOrder.indexOf(me)) % 4 === 0) {
+    const strongest = [...borderWars].sort((a, b) => factionPower(state, b) - factionPower(state, a))[0]!;
+    const ratio = factionPower(state, strongest) / Math.max(1, mine);
+    if ((borderWars.length >= 2 && ratio >= 0.8) || ratio >= Math.max(1.3, 1.8 * turn.profile.warlike)) {
       return { kind: "diplomacy", target: strongest, action: "propose-peace" };
     }
   }
 
-  // Propose an alliance to a peaceful AI neighbor that shares an enemy.
+  // Propose an alliance to a peaceful neighbor that shares an enemy.
   for (const f of others) {
     const r = relationBetween(state, me, f)!;
-    if (r.status !== "peace" || state.factions[f]!.controller !== "ai" || state.turn - r.sinceTurn < 3) continue;
+    if (r.status !== "peace" || state.turn - r.sinceTurn < 3) continue;
     const shared = others.some((e) => e !== f && relationBetween(state, me, e)?.status === "war" && relationBetween(state, f, e)?.status === "war");
     if (shared && (state.turn + state.factionOrder.indexOf(me)) % 5 === 0) return { kind: "diplomacy", target: f, action: "propose-alliance" };
   }

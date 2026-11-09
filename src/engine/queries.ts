@@ -141,6 +141,11 @@ export function ownedProvinces(state: GameState, faction: string): string[] {
     .map(([id]) => id);
 }
 
+/** Whether any province of `a` touches a province of `b`. */
+export function bordering(state: GameState, a: string, b: string): boolean {
+  return ownedProvinces(state, a).some((p) => scenarioProvince(state, p).neighbors.some((n) => state.provinces[n]?.owner === b));
+}
+
 /** Provinces a faction can currently see: its own and allies' territory and armies, plus their neighbors. */
 export function visibleProvinces(state: GameState, faction: string): Set<string> {
   const seers = new Set(Object.keys(state.factions).filter((f) => isAllied(state, faction, f)));
