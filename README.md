@@ -12,6 +12,9 @@ with *Totally Accurate Battle Simulator*-style physics battles. See
 - Step 3, economy and recruitment: done. Recruit and build from the province
   panel, split/merge/disband/upgrade armies, a treasury breakdown (click the
   resource bar), and a battle report after every fight.
+- Step 4, research and unit roster: done. A research screen (press R) with the
+  5 types x 6 eras grid and unit cards, and type counters, armor, and magic in
+  the unit data that battles use.
 
 Battles currently resolve instantly with a placeholder (step 6 adds the physics
 simulation), and computer factions pass their turns (step 5 adds the AI).
@@ -25,6 +28,7 @@ simulation), and computer factions pass their turns (step 5 adds the AI).
 | Pan | Left drag |
 | Rotate | Right drag |
 | Zoom | Scroll |
+| Research | R |
 | Deselect | Esc |
 | End turn | Enter |
 

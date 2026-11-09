@@ -8,15 +8,44 @@ export interface UnitDef {
   cost: Cost;
   upkeep: number;
   health: number;
+  /** Fraction of incoming damage absorbed, 0..1. */
+  armor: number;
   mass: number;
   speed: number;
   weapon: {
-    kind: "melee" | "projectile" | "beam" | "area";
+    kind: "melee" | "projectile" | "beam" | "area" | "magic";
     damage: number;
     range: number;
     cooldown: number;
+    /** Magic goes straight through armor. */
+    ignoresArmor: boolean;
   };
 }
+
+/**
+ * Rock-paper-scissors between military types: damage multipliers against the
+ * listed defender types. Keeps older, cheaper eras useful against the right target.
+ */
+export const TYPE_BONUS: Record<MilitaryType, Partial<Record<MilitaryType, number>>> = {
+  infantry: { cavalry: 1.6 },
+  ranged: { infantry: 1.35, special: 1.25 },
+  cavalry: { ranged: 1.7, artillery: 1.7 },
+  artillery: { infantry: 1.5, special: 1.5 },
+  special: { infantry: 1.3, cavalry: 1.3 },
+};
+
+const ERA_ARMOR: Record<Era, number> = {
+  prehistoric: 0,
+  ancient: 0.1,
+  medieval: 0.2,
+  modern: 0.25,
+  futuristic: 0.4,
+  fantastical: 0.05,
+};
+
+/** Fantastical units hit hard and ignore armor, but are a little fragile. */
+const ERA_HEALTH_FACTOR: Partial<Record<Era, number>> = { fantastical: 0.9 };
+const ERA_DAMAGE_FACTOR: Partial<Record<Era, number>> = { fantastical: 1.6 };
 
 export const SQUAD_SIZE: Record<MilitaryType, number> = {
   infantry: 5,
@@ -86,19 +115,22 @@ interface Archetype {
   health: number;
   mass: number;
   speed: number;
-  weapon: UnitDef["weapon"];
+  weapon: Omit<UnitDef["weapon"], "ignoresArmor">;
 }
 
-// Per-soldier stats at Prehistoric; higher eras scale these up.
+// Per-soldier stats at Prehistoric; higher eras scale these up. Tuned so a full
+// squad of each type gives roughly the same health and damage per gold, leaving
+// the type counters (TYPE_BONUS) to decide fights between equal budgets.
 const ARCHETYPES: Record<MilitaryType, Archetype> = {
-  infantry: { baseGold: 4, health: 100, mass: 70, speed: 3, weapon: { kind: "melee", damage: 12, range: 1.5, cooldown: 1 } },
-  ranged: { baseGold: 5, health: 60, mass: 60, speed: 3, weapon: { kind: "projectile", damage: 10, range: 25, cooldown: 1.5 } },
-  cavalry: { baseGold: 7, health: 160, mass: 300, speed: 7, weapon: { kind: "melee", damage: 16, range: 2, cooldown: 1.2 } },
-  artillery: { baseGold: 10, health: 200, mass: 500, speed: 0.5, weapon: { kind: "area", damage: 60, range: 45, cooldown: 4 } },
-  special: { baseGold: 14, health: 600, mass: 1500, speed: 2.5, weapon: { kind: "melee", damage: 50, range: 3, cooldown: 2 } },
+  infantry: { baseGold: 4, health: 80, mass: 70, speed: 3, weapon: { kind: "melee", damage: 10, range: 1.5, cooldown: 1 } },
+  ranged: { baseGold: 5, health: 85, mass: 60, speed: 3, weapon: { kind: "projectile", damage: 32, range: 25, cooldown: 1.5 } },
+  cavalry: { baseGold: 7, health: 250, mass: 300, speed: 7, weapon: { kind: "melee", damage: 34, range: 2, cooldown: 1.2 } },
+  artillery: { baseGold: 10, health: 600, mass: 500, speed: 0.5, weapon: { kind: "area", damage: 640, range: 45, cooldown: 4 } },
+  special: { baseGold: 14, health: 1650, mass: 1500, speed: 2.5, weapon: { kind: "melee", damage: 300, range: 3, cooldown: 2 } },
 };
 
 function weaponKindFor(type: MilitaryType, era: Era): UnitDef["weapon"]["kind"] {
+  if (era === "fantastical") return "magic";
   if (era === "futuristic" && (type === "ranged" || type === "artillery")) return "beam";
   if (era === "modern" && (type === "cavalry" || type === "special")) return "projectile";
   if (era === "futuristic" && type === "cavalry") return "projectile";
@@ -128,16 +160,35 @@ function buildUnit(type: MilitaryType, era: Era): UnitDef {
     era,
     cost: eraCost(type, era),
     upkeep: eraUpkeep(era),
-    health: Math.round(a.health * scale),
+    health: Math.round(a.health * scale * (ERA_HEALTH_FACTOR[era] ?? 1)),
+    armor: ERA_ARMOR[era],
     mass: a.mass,
     speed: a.speed,
     weapon: {
       kind: weaponKindFor(type, era),
-      damage: Math.round(a.weapon.damage * scale),
+      damage: Math.round(a.weapon.damage * scale * (ERA_DAMAGE_FACTOR[era] ?? 1)),
       range: a.weapon.range,
       cooldown: a.weapon.cooldown,
+      ignoresArmor: era === "fantastical",
     },
   };
+}
+
+/** Multiplier applied to `attacker`'s damage against `defender`: type counters times armor. */
+export function damageMultiplier(attacker: UnitDef, defender: UnitDef): number {
+  const counter = TYPE_BONUS[attacker.type][defender.type] ?? 1;
+  const armor = attacker.weapon.ignoresArmor ? 0 : defender.armor;
+  return counter * (1 - armor);
+}
+
+/** Types this type deals bonus damage to, strongest first. */
+export function strongAgainst(type: MilitaryType): MilitaryType[] {
+  return (Object.entries(TYPE_BONUS[type]) as [MilitaryType, number][]).sort((a, b) => b[1] - a[1]).map(([t]) => t);
+}
+
+/** Types that deal bonus damage to this type. */
+export function weakAgainst(type: MilitaryType): MilitaryType[] {
+  return MILITARY_TYPES.filter((t) => (TYPE_BONUS[t][type] ?? 1) > 1);
 }
 
 export const UNITS: Record<string, UnitDef> = Object.fromEntries(

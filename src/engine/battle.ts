@@ -1,4 +1,4 @@
-import { SQUAD_SIZE, unitFor } from "./data/units";
+import { SQUAD_SIZE, TYPE_BONUS, damageMultiplier, unitFor, type UnitDef } from "./data/units";
 import {
   armiesAt,
   bestMainEra,
@@ -161,52 +161,86 @@ export function runPendingBattle(state: GameState, resolver: BattleResolver = pl
   return resolveBattle(state, resolver(battle, scenarioProvince(state, battle.province).terrain));
 }
 
+interface Fighter {
+  unit: UnitDef;
+  soldiers: number;
+  wounds: number;
+}
+
+/** Infantry and Special units hold the line, so they draw more of the enemy's attention. */
+const SCREEN_WEIGHT: Record<string, number> = { infantry: 1.6, special: 1.4 };
+const DEFENDER_BONUS = 1.1;
+/** Each side's fortune for the whole battle, so evenly matched fights can go either way. */
+const LUCK_RANGE: [number, number] = [0.85, 1.15];
+const MAX_ROUNDS = 60;
+
+function pickTarget(rng: Rng, attacker: Fighter, enemies: Fighter[]): number {
+  const weights = enemies.map((e) => {
+    if (e.soldiers <= 0) return 0;
+    const counter = TYPE_BONUS[attacker.unit.type][e.unit.type] ?? 1;
+    return (SCREEN_WEIGHT[e.unit.type] ?? 1) * (1 + (counter - 1) * 2);
+  });
+  let roll = rng.next() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < weights.length; i++) {
+    roll -= weights[i]!;
+    if (roll < 0) return i;
+  }
+  return weights.findIndex((w) => w > 0);
+}
+
+function wound(target: Fighter, amount: number): void {
+  let left = amount;
+  while (left > 0 && target.soldiers > 0) {
+    const needed = target.unit.health - target.wounds;
+    if (left >= needed) {
+      left -= needed;
+      target.soldiers -= 1;
+      target.wounds = 0;
+    } else {
+      target.wounds += left;
+      left = 0;
+    }
+  }
+}
+
 /**
- * Temporary stand-in for the physics battle simulation. Fights in rounds: each
- * side deals damage based on its living soldiers' weapons and the other side
- * loses soldiers front squad first.
+ * Temporary stand-in for the physics battle simulation. Fights in rounds: every
+ * squad picks a target (favoring types it counters and the enemy front line)
+ * and both sides' damage lands at once, scaled by type counters and armor.
  */
 export const placeholderResolver: BattleResolver = (battle) => {
   const rng = new Rng(battle.seed);
-  const sides = [battle.attacker.squads, battle.defender.squads].map((squads) =>
-    squads.map((s) => {
-      const unit = unitFor(s.type, s.era);
-      return { soldiers: s.soldiers, health: unit.health, damage: unit.weapon.damage / unit.weapon.cooldown, wounds: 0 };
-    }),
-  );
-  const [atk, def] = sides as [typeof sides[number], typeof sides[number]];
-  const alive = (side: typeof atk) => side.some((s) => s.soldiers > 0);
-  const strength = (side: typeof atk) => side.reduce((sum, s) => sum + s.soldiers * s.damage, 0);
-  const takeDamage = (side: typeof atk, amount: number) => {
-    for (const s of side) {
-      while (amount > 0 && s.soldiers > 0) {
-        const needed = s.health - s.wounds;
-        if (amount >= needed) {
-          amount -= needed;
-          s.soldiers -= 1;
-          s.wounds = 0;
-        } else {
-          s.wounds += amount;
-          amount = 0;
-        }
-      }
-      if (amount <= 0) return;
+  const toFighters = (squads: Squad[]): Fighter[] =>
+    squads.map((s) => ({ unit: unitFor(s.type, s.era), soldiers: s.soldiers, wounds: 0 }));
+  const atk = toFighters(battle.attacker.squads);
+  const def = toFighters(battle.defender.squads);
+  const alive = (side: Fighter[]) => side.some((f) => f.soldiers > 0);
+
+  const atkLuck = rng.range(...LUCK_RANGE);
+  const defLuck = rng.range(...LUCK_RANGE) * DEFENDER_BONUS;
+
+  const volley = (from: Fighter[], to: Fighter[], bonus: number): number[] => {
+    const damage = to.map(() => 0);
+    for (const f of from) {
+      if (f.soldiers <= 0) continue;
+      const t = pickTarget(rng, f, to);
+      if (t < 0) continue;
+      const perSoldier = f.unit.weapon.damage / f.unit.weapon.cooldown;
+      damage[t]! += f.soldiers * perSoldier * damageMultiplier(f.unit, to[t]!.unit) * rng.range(0.6, 1.4) * bonus;
     }
+    return damage;
   };
 
-  const MAX_ROUNDS = 60;
-  let round = 0;
-  while (alive(atk) && alive(def) && round < MAX_ROUNDS) {
-    const atkHit = strength(atk) * rng.range(0.6, 1.4);
-    const defHit = strength(def) * rng.range(0.6, 1.4) * 1.1;
-    takeDamage(def, atkHit);
-    takeDamage(atk, defHit);
-    round++;
+  for (let round = 0; round < MAX_ROUNDS && alive(atk) && alive(def); round++) {
+    const onDefender = volley(atk, def, atkLuck);
+    const onAttacker = volley(def, atk, defLuck);
+    onDefender.forEach((d, i) => wound(def[i]!, d));
+    onAttacker.forEach((d, i) => wound(atk[i]!, d));
   }
 
   return {
     winner: alive(atk) && !alive(def) ? "attacker" : "defender",
-    attackerSurvivors: atk.map((s) => s.soldiers),
-    defenderSurvivors: def.map((s) => s.soldiers),
+    attackerSurvivors: atk.map((f) => f.soldiers),
+    defenderSurvivors: def.map((f) => f.soldiers),
   };
 };

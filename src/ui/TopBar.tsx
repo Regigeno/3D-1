@@ -1,4 +1,5 @@
 import { factionIncome, factionUpkeep, type ResourceKind } from "../engine";
+import { affordableResearch } from "../game/research";
 import type { GameSession } from "../game/session";
 
 const RESOURCES: Array<{ key: ResourceKind; label: string; icon: string }> = [
@@ -12,14 +13,16 @@ interface Props {
   session: GameSession;
   onQuit(): void;
   onToggleTreasury(): void;
+  onOpenResearch(): void;
 }
 
-export function TopBar({ session, onQuit, onToggleTreasury }: Props) {
+export function TopBar({ session, onQuit, onToggleTreasury, onOpenResearch }: Props) {
   const { state } = session;
   const me = state.factions[session.viewer]!;
   const income = factionIncome(state, me.id);
   const upkeep = factionUpkeep(state, me.id);
   const active = state.factions[state.activeFaction]!;
+  const researchable = affordableResearch(state, me.id).length;
 
   return (
     <div className="topbar panel">
@@ -45,6 +48,10 @@ export function TopBar({ session, onQuit, onToggleTreasury }: Props) {
       </button>
       <div className="spacer" />
       {!session.isHumanTurn && !state.winner && <span className="muted">{active.name} is thinking…</span>}
+      <button className="ghost research-button" onClick={onOpenResearch} title="Research (R)">
+        Research
+        {researchable > 0 && <span className="badge">{researchable}</span>}
+      </button>
       <button className="ghost" onClick={onQuit}>
         Menu
       </button>
