@@ -24,6 +24,12 @@ with *Totally Accurate Battle Simulator*-style physics battles. See
   with automatic formations, terrain arenas, forts, projectiles, explosions,
   and ragdoll deaths. When you fight, choose Watch (free camera, 0.25×–4×
   speed, follow a soldier) or Skip (same simulation, same result).
+- Step 7, diplomacy, saves, and polish: done. A diplomacy screen for peace,
+  alliances, and war. The computer proposes treaties to you. Games autosave in
+  the browser, and you can keep manual saves or export and import a `.json`
+  file. The menu offers two preset maps besides the random island: Fantasy
+  Earth and The Shattered Crown. Settings cover sound, graphics, and whether
+  battles ask, always play, or always skip.
 
 ## Controls
 
@@ -35,7 +41,9 @@ with *Totally Accurate Battle Simulator*-style physics battles. See
 | Rotate | Right drag |
 | Zoom | Scroll |
 | Research | R |
-| Deselect | Esc |
+| Diplomacy | D |
+| How to play | H or ? |
+| Deselect, or open the game menu | Esc |
 | End turn | Enter |
 
 In a battle:
@@ -62,7 +70,15 @@ npm run build      # static build in dist/
 ```
 
 Pushing to `main` deploys to GitHub Pages through `.github/workflows/pages.yml`.
-In the repository settings, set **Pages > Source** to **GitHub Actions** once.
+The site is a relative build, so it works from a project subpath such as
+`https://<user>.github.io/3D-1/`.
+
+Deployment waits on two things this repository does not have yet:
+
+- The pull-request stack has to be merged into `main`. The workflow only runs
+  on that branch.
+- In the repository settings, set **Pages → Source** to **GitHub Actions**.
+  Pages for a private repository also needs GitHub Pro, Team, or Enterprise.
 
 ## Layout
 
@@ -80,9 +96,11 @@ src/engine/          Rules engine (pure TypeScript, no DOM)
   data/              Unit roster and rule constants
 src/battle/          Physics battles (Rapier): arenas, deployment, simulation
   view/              Three.js battle view and unit models
-src/game/            Session: current game, selection, event log, AI turns
+src/audio/           Synthesized UI and battle sounds
+src/engine/scenarios/  Preset maps: Fantasy Earth and The Shattered Crown
+src/game/            Session, diplomacy view, saves, and settings
 src/render/          Three.js board, terrain props, army figurines, MapView
-src/ui/              React overlay: menu, top bar, province panel, event log
+src/ui/              React overlay: title, map, diplomacy, research, menu
 ```
 
 Every action goes through `applyCommand(state, command)`, which returns a new
