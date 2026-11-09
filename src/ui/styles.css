@@ -886,3 +886,155 @@ tr.total td {
 .bad {
   color: var(--attack);
 }
+
+/* ---------- Battles ---------- */
+
+.battle-prompt .actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.battle-prompt .actions button {
+  flex: 1;
+  padding: 0.6rem;
+}
+
+.battle-prompt .actions kbd {
+  margin-left: 0.4rem;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.battle-prompt p {
+  margin: 0;
+}
+
+.battle-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: #a9cde8;
+}
+
+.battle-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.battle-hud {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, 94vw);
+  padding: 0.6rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.battle-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.strength {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.strength-side .owner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+}
+
+.strength-side .count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.strength-side.right .owner {
+  flex-direction: row-reverse;
+}
+
+.strength-side.right .count {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.strength .bar {
+  margin-top: 0.3rem;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.strength .bar > div {
+  height: 100%;
+  transition: width 0.2s;
+}
+
+.strength-side.right .bar > div {
+  margin-left: auto;
+}
+
+.battle-controls {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, 96vw);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+}
+
+.battle-controls .segmented button {
+  padding: 0.4rem 0.7rem;
+}
+
+.battle-controls .following {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--accent);
+}
+
+.battle-help {
+  position: absolute;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.25rem 0.7rem;
+  border-radius: 6px;
+  background: rgba(16, 22, 31, 0.6);
+  white-space: nowrap;
+}
+
+.battle-end {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  padding: 1.2rem 1.8rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.battle-end h2,
+.battle-end p {
+  margin: 0;
+}
+
+.loading {
+  padding: 1.2rem 1.6rem;
+}

@@ -8,5 +8,6 @@ export function createPhysicsResolver(R: Rapier): BattleResolver {
 }
 
 export { loadRapier, type Rapier } from "./rapier";
-export { BattleSim, simulateBattle, STEP_SECONDS, MAX_BATTLE_SECONDS, type BattleEffect, type Soldier, type Projectile } from "./sim";
+export { BattleSim, simulateBattle, STEP_SECONDS, MAX_BATTLE_SECONDS, type BattleEffect, type EndReason, type Soldier, type Projectile } from "./sim";
+export { BattleView, BATTLE_SPEEDS } from "./view/BattleView";
 export { buildArena, groundHeight, FIELD_LENGTH, FIELD_WIDTH, type ArenaLayout } from "./arena";
