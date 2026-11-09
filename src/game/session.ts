@@ -21,6 +21,7 @@ import {
   type VictoryCondition,
 } from "../engine";
 import { describeEvent } from "./describe";
+import { SAVE_FORMAT, SAVE_VERSION, type SaveData } from "./save";
 
 export interface Selection {
   province: string | null;
@@ -40,6 +41,8 @@ export interface LogEntry {
 export interface GameRules {
   difficulty: Difficulty;
   victory: VictoryCondition;
+  /** The faction the player controls; defaults to the scenario's first faction. */
+  humanFaction?: string;
 }
 
 export interface NewGameSettings extends Partial<GameRules> {
@@ -113,7 +116,7 @@ export class GameSession {
   }
 
   static fromScenario(scenario: Scenario, seed: number, rules: Partial<GameRules> = {}, options: SessionOptions = {}): GameSession {
-    const human = scenario.factions[0]!.id;
+    const human = rules.humanFaction && scenario.factions.some((f) => f.id === rules.humanFaction) ? rules.humanFaction : scenario.factions[0]!.id;
     const { state, events } = createGame(scenario, {
       seed,
       difficulty: rules.difficulty ?? DEFAULT_RULES.difficulty,
@@ -121,6 +124,35 @@ export class GameSession {
       controllers: { [human]: "human" },
     });
     return new GameSession(state, events, options);
+  }
+
+  /** Resumes a saved game. */
+  static fromSave(save: SaveData, options: SessionOptions = {}): GameSession {
+    const session = new GameSession(save.state, [], options);
+    session.log = [...save.log, ...session.log].slice(-MAX_LOG);
+    session.nextLogId = Math.max(0, ...session.log.map((e) => e.id)) + 1;
+    session.battleReports = [...save.battleReports, ...session.battleReports];
+    return session;
+  }
+
+  toSave(): SaveData {
+    return {
+      format: SAVE_FORMAT,
+      version: SAVE_VERSION,
+      savedAt: Date.now(),
+      state: this.state,
+      log: this.log,
+      battleReports: this.battleReports,
+    };
+  }
+
+  /** Whether this is a good moment to autosave: nothing is half-done in the background. */
+  get settled(): boolean {
+    return !this.aiScheduled && (this.isHumanTurn || !!this.state.winner || this.defeated);
+  }
+
+  get gameOver(): boolean {
+    return !!this.state.winner || this.defeated;
   }
 
   subscribe = (listener: () => void): (() => void) => {
