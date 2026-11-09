@@ -157,15 +157,6 @@ export function BattleScreen({ session, battle, rapier }: { session: GameSession
           <button className="ghost" onClick={() => viewRef.current?.followSomeone()} title="Follow a random soldier (F)">
             Follow
           </button>
-          {followed && (
-            <span className="following small">
-              Following {unitFor(followed.unit.type, followed.unit.era).name}
-              {followed.alive ? "" : " (fallen)"}
-              <button className="ghost small" onClick={() => viewRef.current?.follow(null)} title="Free camera (Esc)">
-                ✕
-              </button>
-            </span>
-          )}
           <div className="spacer" />
           <button onClick={() => viewRef.current?.skipToEnd()} title="Skip to result (S)">
             Skip to result
@@ -173,7 +164,18 @@ export function BattleScreen({ session, battle, rapier }: { session: GameSession
         </div>
       )}
 
-      {!outcome && <div className="battle-help muted small">Drag to rotate, right-drag to pan, scroll to zoom. Click a soldier to follow it.</div>}
+      {!outcome &&
+        (followed ? (
+          <div className="battle-help following small">
+            Following {unitFor(followed.unit.type, followed.unit.era).name}
+            {followed.alive ? "" : " (fallen)"}
+            <button className="ghost small" onClick={() => viewRef.current?.follow(null)} title="Free camera (Esc)">
+              Free camera
+            </button>
+          </div>
+        ) : (
+          <div className="battle-help muted small">Drag to rotate, right-drag to pan, scroll to zoom. Click a soldier to follow it.</div>
+        ))}
 
       {outcome && (
         <div className="battle-end panel">
