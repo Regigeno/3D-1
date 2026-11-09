@@ -29,6 +29,16 @@ describe("random map generator", () => {
         }
       }
       expect(seen.size).toBe(45);
+
+      for (const p of scenario.provinces) {
+        expect(p.polygon!.length).toBeGreaterThanOrEqual(3);
+        const xs = p.polygon!.map(([x]) => x);
+        const ys = p.polygon!.map(([, y]) => y);
+        expect(p.position.x).toBeGreaterThanOrEqual(Math.min(...xs));
+        expect(p.position.x).toBeLessThanOrEqual(Math.max(...xs));
+        expect(p.position.y).toBeGreaterThanOrEqual(Math.min(...ys));
+        expect(p.position.y).toBeLessThanOrEqual(Math.max(...ys));
+      }
       expect(generateRandomScenario({ seed, provinces: 45, factions: 5 })).toEqual(scenario);
     }
   });

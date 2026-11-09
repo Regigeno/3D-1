@@ -26,6 +26,8 @@ export interface ScenarioProvince {
   baseIncome: number;
   special?: SpecialResource;
   position: { x: number; y: number };
+  /** Outline in map units. When missing, the renderer derives a Voronoi cell from the positions. */
+  polygon?: Array<[number, number]>;
 }
 
 export interface FactionStart {
@@ -39,6 +41,8 @@ export interface Scenario {
   id: string;
   name: string;
   kind: "fictional" | "fantasy-earth" | "random";
+  /** Map extent in map units; province positions lie inside [0, width] x [0, height]. */
+  bounds?: { width: number; height: number };
   provinces: ScenarioProvince[];
   factions: FactionStart[];
 }
