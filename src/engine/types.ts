@@ -50,7 +50,8 @@ export interface Scenario {
 // ---------- Game state (everything that changes) ----------
 
 export type Controller = "human" | "ai";
-export type AiPersonality = "aggressive" | "builder" | "opportunist";
+export const AI_PERSONALITIES = ["aggressive", "builder", "opportunist"] as const;
+export type AiPersonality = (typeof AI_PERSONALITIES)[number];
 export type Difficulty = "easy" | "normal" | "hard";
 
 export type VictoryCondition =

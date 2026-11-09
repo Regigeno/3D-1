@@ -2,7 +2,7 @@ import { STARTING_ARMY, STARTING_BUILDINGS, STARTING_RESOURCES } from "./data/ru
 import { SQUAD_SIZE } from "./data/units";
 import { relationKey } from "./queries";
 import { beginFactionTurn } from "./turn";
-import { MILITARY_TYPES, type GameEvent, type GameOptions, type GameState, type MilitaryType, type Scenario } from "./types";
+import { AI_PERSONALITIES, MILITARY_TYPES, type GameEvent, type GameOptions, type GameState, type MilitaryType, type Scenario } from "./types";
 
 export function validateScenario(scenario: Scenario): string[] {
   const errors: string[] = [];
@@ -55,15 +55,16 @@ export function createGame(scenario: Scenario, options: GameOptions): { state: G
     state.provinces[p.id] = { owner, buildings: owner ? [...STARTING_BUILDINGS] : [] };
   }
 
-  for (const f of scenario.factions) {
+  for (const [index, f] of scenario.factions.entries()) {
     const controller = options.controllers?.[f.id] ?? "ai";
+    const defaultPersonality = AI_PERSONALITIES[(Math.abs(options.seed) + index) % AI_PERSONALITIES.length]!;
     state.factions[f.id] = {
       id: f.id,
       name: f.name,
       color: f.color,
       capital: f.capital,
       controller,
-      ...(controller === "ai" ? { aiPersonality: options.personalities?.[f.id] ?? "opportunist" } : {}),
+      ...(controller === "ai" ? { aiPersonality: options.personalities?.[f.id] ?? defaultPersonality } : {}),
       resources: { ...STARTING_RESOURCES },
       research: Object.fromEntries(MILITARY_TYPES.map((t) => [t, ["prehistoric"]])) as GameState["factions"][string]["research"],
       alive: true,

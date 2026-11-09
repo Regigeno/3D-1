@@ -1,4 +1,4 @@
-import { ARMY_MOVEMENT } from "./data/rules";
+import { AI_INCOME_MULTIPLIER, ARMY_MOVEMENT } from "./data/rules";
 import { ERA_TIER, unitFor } from "./data/units";
 import { factionIncome, factionScore, ownedProvinces } from "./queries";
 import type { GameEvent, GameState } from "./types";
@@ -11,6 +11,10 @@ export function beginFactionTurn(state: GameState, events: GameEvent[]): void {
   state.proposals = state.proposals.filter((p) => p.from !== faction.id);
 
   const gained = factionIncome(state, faction.id);
+  if (faction.controller === "ai") {
+    const k = AI_INCOME_MULTIPLIER[state.options.difficulty];
+    for (const key of Object.keys(gained) as (keyof typeof gained)[]) gained[key] = Math.round(gained[key] * k);
+  }
   faction.resources.gold += gained.gold;
   faction.resources.knowledge += gained.knowledge;
   faction.resources.mana += gained.mana;
