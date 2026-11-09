@@ -1,17 +1,25 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { sound } from "../audio/sound";
+import type { Rapier } from "../battle";
+import { factionName, provinceName } from "../game/describe";
+import { incomingProposals } from "../game/diplomacy";
 import type { GameSession } from "../game/session";
+import { AUTOSAVE_ID } from "../game/storage";
 import { MapView } from "../render/MapView";
+import { BattlePrompt } from "./BattlePrompt";
+import { BattleReport } from "./BattleReport";
+import { BattleScreen } from "./BattleScreen";
+import { DiplomacyScreen } from "./DiplomacyScreen";
 import { EventLog } from "./EventLog";
+import { GameMenu } from "./GameMenu";
+import { GameOver } from "./GameOver";
+import { HelpPanel } from "./HelpPanel";
 import { ProvincePanel } from "./ProvincePanel";
+import { ResearchScreen } from "./ResearchScreen";
+import { saves, settings, useSettings } from "./services";
+import { SettingsPanel } from "./SettingsPanel";
 import { TopBar } from "./TopBar";
 import { TreasuryPanel } from "./TreasuryPanel";
-import { BattleReport } from "./BattleReport";
-import { ResearchScreen } from "./ResearchScreen";
-import { GameOver } from "./GameOver";
-import { provinceName } from "../game/describe";
-import type { Rapier } from "../battle";
-import { BattlePrompt } from "./BattlePrompt";
-import { BattleScreen } from "./BattleScreen";
 
 interface Hover {
   province: string;
@@ -19,20 +27,32 @@ interface Hover {
   y: number;
 }
 
+type Panel = "research" | "diplomacy" | "menu" | "settings" | "help" | "welcome";
+
 export function GameScreen({ session, rapier, onQuit }: { session: GameSession; rapier: Rapier; onQuit(): void }) {
   const version = useSyncExternalStore(session.subscribe, session.getVersion);
+  const prefs = useSettings();
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<MapView | null>(null);
   const [hover, setHover] = useState<Hover | null>(null);
   const [showTreasury, setShowTreasury] = useState(false);
-  const [showResearch, setShowResearch] = useState(false);
+  const [panel, setPanel] = useState<Panel | null>(() => (settings.get().seenIntro ? null : "welcome"));
   const [watching, setWatching] = useState<string | null>(null);
-  const showResearchRef = useRef(showResearch);
-  showResearchRef.current = showResearch;
+  const [notice, setNotice] = useState<{ id: number; text: string } | null>(null);
+  const panelRef = useRef(panel);
+  panelRef.current = panel;
   const prompt = session.battlePrompt;
   const watched = prompt && prompt.id === watching ? prompt : null;
   const watchedRef = useRef(watched);
   watchedRef.current = watched;
+  const gameOver = session.gameOver;
+
+  const closePanel = () => {
+    if (panelRef.current === "welcome") settings.set({ seenIntro: true });
+    setPanel(null);
+  };
+  const closePanelRef = useRef(closePanel);
+  closePanelRef.current = closePanel;
 
   useEffect(() => {
     if (viewRef.current) viewRef.current.paused = !!watched;
@@ -51,6 +71,7 @@ export function GameScreen({ session, rapier, onQuit }: { session: GameSession; 
       onEmptyClick: () => session.clearSelection(),
       onHover: (province, x, y) => setHover(province ? { province, x, y } : null),
     });
+    view.setQuality(settings.get().graphics);
     viewRef.current = view;
     if (import.meta.env.DEV) Object.assign(window, { __session: session, __mapView: view });
     return () => {
@@ -59,43 +80,104 @@ export function GameScreen({ session, rapier, onQuit }: { session: GameSession; 
     };
   }, [session]);
 
+  useEffect(() => viewRef.current?.setQuality(prefs.graphics), [prefs.graphics]);
+
   useEffect(() => {
     viewRef.current?.update({
       state: session.state,
       viewer: session.viewer,
       selection: session.selection,
       targets,
-      revealAll: !!session.state.winner || session.defeated,
+      revealAll: gameOver,
     });
-  }, [session, version, targets]);
+  }, [session, version, targets, gameOver]);
+  // Autosave at the start of each of your turns, including the first. Drop the slot
+  // only if this sitting wrote it and then ended; opening an old finished save must
+  // not erase a different game's autosave.
+  const savedState = useRef<typeof session.state | null>(null);
+  const wroteAutosave = useRef(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!session.settled || savedState.current === session.state) return;
+    savedState.current = session.state;
+    try {
+      if (session.gameOver) {
+        if (wroteAutosave.current) saves.delete(AUTOSAVE_ID);
+      } else {
+        saves.write(session.toSave(), AUTOSAVE_ID);
+        wroteAutosave.current = true;
+      }
+      setSaveError(null);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
+    }
+  }, [session, version]);
+
+  // "Your turn" once the computer players are done, and a chime when someone proposes a treaty.
+  const wasMyTurn = useRef(session.isHumanTurn);
+  const proposalCount = useRef(incomingProposals(session.state, session.viewer).length);
+  useEffect(() => {
+    const mine = session.isHumanTurn && !session.aiBusy;
+    const proposals = incomingProposals(session.state, session.viewer);
+    if (mine && !wasMyTurn.current && !gameOver) {
+      sound.play("turn");
+      setNotice({ id: Date.now(), text: `Turn ${session.state.turn}: your move` });
+    }
+    if (proposals.length > proposalCount.current && mine) {
+      const p = proposals.at(-1)!;
+      sound.play("proposal");
+      setNotice({ id: Date.now(), text: `${factionName(session.state, p.from)} proposes ${p.kind === "peace" ? "peace" : "an alliance"}. Press D to answer.` });
+    }
+    wasMyTurn.current = mine;
+    proposalCount.current = proposals.length;
+  }, [session, version, gameOver]);
+  useEffect(() => {
+    if (!notice) return;
+    const t = window.setTimeout(() => setNotice(null), 3200);
+    return () => window.clearTimeout(t);
+  }, [notice]);
+
+  // The "Your battles" setting can answer the Watch/Skip prompt for you.
+  useEffect(() => {
+    if (!prompt || panel === "welcome") return;
+    if (prefs.battles === "skip") session.skipBattle();
+    else if (prefs.battles === "watch") setWatching(prompt.id);
+  }, [prompt?.id, prefs.battles, panel, session]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
       if (watchedRef.current) return;
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      const open = panelRef.current;
+      if (open) {
+        const toggles: Partial<Record<Panel, string>> = { research: "r", diplomacy: "d", help: "h" };
+        if (key === "Escape" || toggles[open] === key) closePanelRef.current();
+        return;
+      }
       const battle = session.battlePrompt;
       if (battle) {
-        if (e.key === "w" || e.key === "W") setWatching(battle.id);
-        if (e.key === "s" || e.key === "S" || e.key === "Enter") {
+        if (key === "w") setWatching(battle.id);
+        if (key === "s" || key === "Enter") {
           e.preventDefault();
           session.skipBattle();
         }
         return;
       }
       if (session.battleReport) {
-        if (e.key === "Enter" || e.key === "Escape") {
+        if (key === "Enter" || key === "Escape") {
           e.preventDefault();
           session.dismissBattleReport();
         }
         return;
       }
-      if (showResearchRef.current) {
-        if (e.key === "Escape" || e.key === "r" || e.key === "R") setShowResearch(false);
-        return;
-      }
-      if (e.key === "r" || e.key === "R") setShowResearch(true);
-      if (e.key === "Escape") session.clearSelection();
-      if (e.key === "Enter" && session.isHumanTurn) {
+      if (key === "r") setPanel("research");
+      else if (key === "d") setPanel("diplomacy");
+      else if (key === "h" || key === "?") setPanel("help");
+      else if (key === "Escape") {
+        if (session.selection.province) session.clearSelection();
+        else setPanel("menu");
+      } else if (key === "Enter" && session.isHumanTurn) {
         // Otherwise Enter would also "click" whichever button was focused last.
         e.preventDefault();
         session.dispatch({ kind: "end-turn" });
@@ -105,19 +187,31 @@ export function GameScreen({ session, rapier, onQuit }: { session: GameSession; 
     return () => window.removeEventListener("keydown", onKey);
   }, [session]);
 
-  const gameOver = !!session.state.winner || session.defeated;
+  const error = session.lastError ?? saveError;
 
   return (
     <div className="game">
       <div className="map" ref={containerRef} />
-      <TopBar session={session} onQuit={onQuit} onToggleTreasury={() => setShowTreasury((v) => !v)} onOpenResearch={() => setShowResearch(true)} />
+      <TopBar
+        session={session}
+        onMenu={() => setPanel("menu")}
+        onToggleTreasury={() => setShowTreasury((v) => !v)}
+        onOpenResearch={() => setPanel("research")}
+        onOpenDiplomacy={() => setPanel("diplomacy")}
+      />
       {showTreasury && <TreasuryPanel session={session} onClose={() => setShowTreasury(false)} />}
       <ProvincePanel session={session} targets={targets} onFocus={(p) => viewRef.current?.focusProvince(p)} />
       <EventLog session={session} />
-      {session.lastError && <div className="toast error">{session.lastError}</div>}
+      {error && <div className="toast error">{error}</div>}
+      {!error && notice && (
+        <div key={notice.id} className="toast notice">
+          {notice.text}
+        </div>
+      )}
       {!session.selection.province && !gameOver && !prompt && (
         <div className="hint panel">
-          Click a province or army. Drag to pan, right-drag to rotate, scroll to zoom. <kbd>R</kbd> opens research, <kbd>Enter</kbd> ends your turn.
+          Click a province or army. Drag to pan, right-drag to rotate, scroll to zoom. <kbd>R</kbd> research, <kbd>D</kbd> diplomacy, <kbd>H</kbd> help,{" "}
+          <kbd>Enter</kbd> ends your turn.
         </div>
       )}
       {hover && (
@@ -126,7 +220,8 @@ export function GameScreen({ session, rapier, onQuit }: { session: GameSession; 
           {targets.has(hover.province) && <span className={`tag ${targets.get(hover.province)}`}>{targets.get(hover.province)}</span>}
         </div>
       )}
-      {showResearch && <ResearchScreen session={session} onClose={() => setShowResearch(false)} />}
+      {panel === "research" && <ResearchScreen session={session} onClose={closePanel} />}
+      {panel === "diplomacy" && <DiplomacyScreen session={session} onClose={closePanel} />}
       {watched ? (
         <BattleScreen session={session} battle={watched} rapier={rapier} />
       ) : prompt ? (
@@ -136,6 +231,11 @@ export function GameScreen({ session, rapier, onQuit }: { session: GameSession; 
       ) : (
         gameOver && <GameOver session={session} onQuit={onQuit} />
       )}
+      {panel === "menu" && (
+        <GameMenu session={session} onResume={closePanel} onSettings={() => setPanel("settings")} onHelp={() => setPanel("help")} onQuit={onQuit} />
+      )}
+      {panel === "settings" && <SettingsPanel onClose={closePanel} />}
+      {(panel === "help" || panel === "welcome") && <HelpPanel welcome={panel === "welcome"} onClose={closePanel} />}
     </div>
   );
 }

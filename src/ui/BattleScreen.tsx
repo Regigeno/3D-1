@@ -3,6 +3,8 @@ import { BATTLE_SPEEDS, BattleSim, BattleView, MAX_BATTLE_SECONDS, type EndReaso
 import { scenarioProvince, unitFor, type BattleResult, type PendingBattle } from "../engine";
 import { factionName, provinceName } from "../game/describe";
 import type { GameSession } from "../game/session";
+import { sound } from "../audio/sound";
+import { settings } from "./services";
 
 interface Hud {
   time: number;
@@ -41,10 +43,15 @@ export function BattleScreen({ session, battle, rapier }: { session: GameSession
       sim,
       { attacker: color(battle.attacker.faction), defender: color(battle.defender.faction) },
       {
-        onFinished: (result) => setOutcome({ result, reason: sim.reason ?? "timeout" }),
+        onFinished: (result) => {
+          const winner = result.winner === "attacker" ? battle.attacker.faction : battle.defender.faction;
+          sound.play(winner === session.viewer ? "victory" : "defeat");
+          setOutcome({ result, reason: sim.reason ?? "timeout" });
+        },
         onFollow: setFollowed,
       },
     );
+    view.setQuality(settings.get().graphics);
     viewRef.current = view;
     const read = () =>
       setHud({

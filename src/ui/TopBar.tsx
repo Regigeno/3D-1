@@ -1,4 +1,5 @@
 import { factionIncome, factionUpkeep, type ResourceKind } from "../engine";
+import { incomingProposals } from "../game/diplomacy";
 import { affordableResearch } from "../game/research";
 import type { GameSession } from "../game/session";
 import { victoryGoal } from "../game/victory";
@@ -12,12 +13,13 @@ const RESOURCES: Array<{ key: ResourceKind; label: string; icon: string }> = [
 
 interface Props {
   session: GameSession;
-  onQuit(): void;
+  onMenu(): void;
   onToggleTreasury(): void;
   onOpenResearch(): void;
+  onOpenDiplomacy(): void;
 }
 
-export function TopBar({ session, onQuit, onToggleTreasury, onOpenResearch }: Props) {
+export function TopBar({ session, onMenu, onToggleTreasury, onOpenResearch, onOpenDiplomacy }: Props) {
   const { state } = session;
   const me = state.factions[session.viewer]!;
   const income = factionIncome(state, me.id);
@@ -25,6 +27,7 @@ export function TopBar({ session, onQuit, onToggleTreasury, onOpenResearch }: Pr
   const active = state.factions[state.activeFaction]!;
   const researchable = affordableResearch(state, me.id).length;
   const goal = victoryGoal(state, me.id);
+  const proposals = incomingProposals(state, me.id).length;
 
   return (
     <div className="topbar panel">
@@ -57,7 +60,11 @@ export function TopBar({ session, onQuit, onToggleTreasury, onOpenResearch }: Pr
         Research
         {researchable > 0 && <span className="badge">{researchable}</span>}
       </button>
-      <button className="ghost" onClick={onQuit}>
+      <button className="ghost" onClick={onOpenDiplomacy} title="Diplomacy (D)">
+        Diplomacy
+        {proposals > 0 && <span className="badge alert">{proposals}</span>}
+      </button>
+      <button className="ghost" onClick={onMenu} title="Menu (Esc)">
         Menu
       </button>
       <button className="primary" disabled={!session.isHumanTurn || !!session.battlePrompt} onClick={() => session.dispatch({ kind: "end-turn" })}>

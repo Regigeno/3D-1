@@ -1,4 +1,5 @@
-import { armiesAt, garrisonSquadCount, isAllied, provinceIncome, scenarioProvince, visibleProvinces } from "../engine";
+import { armiesAt, garrisonSquadCount, isAllied, provinceIncome, relationBetween, scenarioProvince, visibleProvinces } from "../engine";
+import { STATUS_LABEL } from "../game/diplomacy";
 import { TERRAIN_LABEL, factionName } from "../game/describe";
 import { BUILDING_INFO } from "../game/economy";
 import type { GameSession, MoveKind } from "../game/session";
@@ -41,6 +42,11 @@ export function ProvincePanel({ session, targets, onFocus }: Props) {
         <span className="swatch" style={{ background: owner?.color ?? "#888" }} />
         {factionName(state, province.owner)}
         {isCapital && <span className="tag">Capital</span>}
+        {owner && owner.id !== session.viewer && (
+          <span className={`status ${relationBetween(state, session.viewer, owner.id)?.status ?? "war"}`}>
+            {STATUS_LABEL[relationBetween(state, session.viewer, owner.id)?.status ?? "war"]}
+          </span>
+        )}
       </div>
 
       <dl className="facts">

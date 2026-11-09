@@ -4,6 +4,7 @@ import {
   generateRandomScenario,
   nextAiCommand,
   placeholderResolver,
+  presetScenario,
   rejectAiCommand,
   resolveBattle,
   scenarioProvince,
@@ -46,6 +47,8 @@ export interface GameRules {
 }
 
 export interface NewGameSettings extends Partial<GameRules> {
+  /** "random" (the default) or a preset map id; presets ignore `provinces` and `factions`. */
+  map?: string;
   seed: number;
   provinces: number;
   factions: number;
@@ -107,6 +110,7 @@ export class GameSession {
   }
 
   static newRandomGame(settings: NewGameSettings, options: SessionOptions = {}): GameSession {
+    if (settings.map && settings.map !== "random") return GameSession.fromScenario(presetScenario(settings.map), settings.seed, settings, options);
     const scenario = generateRandomScenario({
       seed: settings.seed,
       provinces: settings.provinces,
