@@ -1,4 +1,4 @@
-# 3D-1
+# Petty Empires
 
 A browser 3D sandbox war game: *Age of Conquest IV*-style turn-based strategy
 with *Totally Accurate Battle Simulator*-style physics battles. See
@@ -15,9 +15,14 @@ with *Totally Accurate Battle Simulator*-style physics battles. See
 - Step 4, research and unit roster: done. A research screen (press R) with the
   5 types x 6 eras grid and unit cards, and type counters, armor, and magic in
   the unit data that battles use.
+- Step 5, opponent AI and victory conditions: done. Computer rivals with three
+  personalities (aggressive, builder, opportunist) that expand, research, build,
+  recruit counters, attack, and make and break treaties, all without seeing
+  through fog of war. Pick Easy/Normal/Hard and a victory condition
+  (domination, capitals, or score after a turn limit) in the menu.
 
 Battles currently resolve instantly with a placeholder (step 6 adds the physics
-simulation), and computer factions pass their turns (step 5 adds the AI).
+simulation).
 
 ## Controls
 
@@ -57,6 +62,7 @@ src/engine/          Rules engine (pure TypeScript, no DOM)
   mapgen.ts          Seeded random island generator (Voronoi provinces)
   geometry.ts        Voronoi cells and polygon helpers
   queries.ts         Read-only helpers (income, fog of war, score, ...)
+  ai/                Opponent AI: fog-aware evaluation and the turn planner
   data/              Unit roster and rule constants
 src/game/            Session: current game, selection, event log, AI turns
 src/render/          Three.js board, terrain props, army figurines, MapView

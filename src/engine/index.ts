@@ -17,4 +17,5 @@ export {
   type UnitDef,
 } from "./data/units";
 export * as rules from "./data/rules";
+export * from "./ai";
 export { Rng } from "./rng";

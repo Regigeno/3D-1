@@ -1,6 +1,6 @@
-# Strategy Layer Design
+# Petty Empires: Strategy Layer Design
 
-A browser-based 3D sandbox war game: *Age of Conquest IV*-style turn-based
+**Petty Empires** is a browser-based 3D sandbox war game: *Age of Conquest IV*-style turn-based
 grand strategy on a province map, with every battle resolved as a
 *Totally Accurate Battle Simulator*-style physics simulation the player watches.
 
@@ -419,6 +419,52 @@ Utility scoring, not machine learning:
   opportunist).
 - Difficulty changes weights and gives a resource bonus; it never grants
   vision through fog of war.
+
+### 13.1 As built in step 5
+
+The AI lives in `src/engine/ai/` and plays through `applyCommand` like a
+human, so it cannot break rules. A turn runs in phases, each proposing its
+best-scoring command until it has nothing worth doing:
+
+1. **Answer proposals.** Peace is accepted with trust of at least 30 when the
+   proposer is comparably strong or the AI is fighting on two or more fronts.
+   An alliance needs trust of at least 55 and a shared enemy.
+2. **Diplomacy.** Break an alliance once no shared enemy is left. Break a
+   peace that has lasted 10 turns when the neighbor is much weaker, or when
+   there is no war on any border. Sue for peace when fighting on two or more
+   fronts. Offer alliances against a shared enemy. The AI only proposes to
+   other AIs until diplomacy has a UI (step 7).
+3. **Research.** The best type-weight per Knowledge among affordable steps.
+   Fantastical needs Mana income; Futuristic is discounted without Energy.
+4. **Build.** Scored by return: Markets in safe provinces, a Library per six
+   provinces, Shrines on ley lines, Power Plants once Modern units are
+   unlocked, a Fort in a threatened capital, and Barracks on a wide frontier
+   (or anywhere at all if the faction has none left). A gold reserve is kept.
+5. **Recruit.** At the barracks nearest unowned land. Types are scored by how
+   well they counter the enemy squads the AI can see, times personality
+   weights, times a variety bonus. Recruiting stops when net Gold per turn
+   would drop below the personality's floor.
+6. **Move.** Split single squads off to grab several undefended neighbors at
+   once. Attack when the estimated win chance (the battle resolver replayed on
+   the defenders it can see) beats the personality's threshold. Hold a
+   threatened capital. Otherwise march through friendly land toward the best
+   target or a threatened province.
+7. **Merge** armies sharing a province, then end the turn.
+
+| Personality | Attack threshold | Leans toward |
+|---|---|---|
+| Aggressive | 50% win chance | Cavalry and Special, few buildings, breaks peace readily |
+| Opportunist | 60% | Balanced |
+| Builder | 70% | Ranged and Artillery, two buildings a turn, keeps a healthy economy |
+
+Difficulty shifts the threshold (Easy +12 points, Hard -8) and multiplies
+computer factions' income: Easy x0.85, Normal x1, Hard x1.25. Personalities
+are assigned from the seed. The AI estimates defenses from visible armies and
+garrisons only: a fort or army hidden by fog is unknown to it.
+
+In all-AI simulations on 30-province maps, games usually end in 13 to 25 rounds. With
+the human seat played by the same AI (no bonus), that seat wins about 65% of
+games on Easy, 60% on Normal, and 35% on Hard.
 
 ## 14. Build Order
 

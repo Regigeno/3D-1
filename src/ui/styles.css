@@ -166,7 +166,8 @@ kbd {
   margin: -0.6rem 0 0.4rem;
 }
 
-.menu-card label {
+.menu-card label,
+.menu-card .field {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -185,6 +186,32 @@ kbd {
 
 .menu-card input[type="range"] {
   accent-color: var(--accent);
+}
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segmented button {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  padding: 0.45rem 0;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--panel-border);
+}
+
+.segmented button.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
 }
 
 .row {
@@ -229,6 +256,12 @@ kbd {
 
 .topbar .turn {
   color: var(--muted);
+}
+
+.topbar .goal {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  cursor: help;
 }
 
 .resources {
@@ -661,6 +694,42 @@ tr.total td {
 .victory h2 {
   margin: 0 0 0.3rem;
   font-size: 2rem;
+}
+
+.standings {
+  width: 100%;
+  margin: 1rem 0 1.4rem;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.standings th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 0.4rem;
+}
+
+.standings td {
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--panel-border);
+}
+
+.standings .num {
+  padding-left: 1.4rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.standings .swatch {
+  margin-right: 0.5rem;
+}
+
+.standings tr.eliminated td {
+  opacity: 0.45;
+  text-decoration: line-through;
 }
 
 /* ---------- Research ---------- */

@@ -1,4 +1,4 @@
-import type { Building, Cost, Era, Resources, Terrain } from "../types";
+import type { Building, Cost, Difficulty, Era, Resources, Terrain } from "../types";
 
 export const STARTING_RESOURCES: Resources = { gold: 30, knowledge: 0, mana: 0, energy: 0 };
 export const STARTING_BUILDINGS: Building[] = ["barracks"];
@@ -44,6 +44,13 @@ export const RESEARCH_COST: Record<Exclude<Era, "prehistoric">, number> = {
   modern: 35,
   futuristic: 55,
   fantastical: 30,
+};
+
+/** Difficulty changes only how much computer factions earn; they never see through fog of war. */
+export const AI_INCOME_MULTIPLIER: Record<Difficulty, number> = {
+  easy: 0.85,
+  normal: 1,
+  hard: 1.25,
 };
 
 export const MIN_PEACE_TURNS = 10;
