@@ -662,3 +662,158 @@ tr.total td {
   margin: 0 0 0.3rem;
   font-size: 2rem;
 }
+
+/* ---------- Research ---------- */
+
+.research-button {
+  position: relative;
+}
+
+.badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  margin-left: 0.4rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #6fc3ff;
+  color: #04131f;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.research {
+  width: min(1180px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  padding: 1.2rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.research-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.research-head h2 {
+  margin: 0;
+}
+
+.research p {
+  margin: 0;
+}
+
+.research-body {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1rem;
+  align-items: start;
+}
+
+.research-grid {
+  border-collapse: separate;
+  border-spacing: 4px;
+  width: 100%;
+}
+
+.research-grid th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+  text-align: left;
+  padding: 0 0.3rem;
+}
+
+.research-grid th.branch,
+.research-grid td.branch {
+  padding-left: 10px;
+}
+
+.research-grid th.branch {
+  color: #c48bff;
+}
+
+.cell {
+  width: 100%;
+  min-height: 3.4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.2rem;
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+}
+
+.cell-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.cell-status {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.cell.researched {
+  background: rgba(57, 215, 122, 0.14);
+  border-color: rgba(57, 215, 122, 0.35);
+}
+
+.cell.researched .cell-status {
+  color: var(--move);
+}
+
+.cell.available.affordable {
+  border-color: rgba(111, 195, 255, 0.6);
+}
+
+.cell.available.affordable .cell-status {
+  color: #6fc3ff;
+}
+
+.cell.locked {
+  opacity: 0.45;
+}
+
+.cell.focused {
+  box-shadow: 0 0 0 2px var(--accent);
+  opacity: 1;
+}
+
+.research-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.8rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.unit-card h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.unit-card-head {
+  margin-bottom: 0.5rem;
+}
+
+.unit-card p {
+  margin: 0.6rem 0 0;
+}
+
+.good {
+  color: var(--move);
+}
+
+.bad {
+  color: var(--attack);
+}

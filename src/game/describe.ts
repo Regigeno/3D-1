@@ -1,4 +1,21 @@
-import { MILITARY_TYPES, unitFor, type Army, type GameEvent, type GameState, type MilitaryType, type Squad } from "../engine";
+import { MILITARY_TYPES, unitFor, type Army, type Era, type GameEvent, type GameState, type MilitaryType, type Squad } from "../engine";
+
+export const TYPE_LABEL: Record<MilitaryType, string> = {
+  infantry: "Infantry",
+  ranged: "Ranged",
+  cavalry: "Cavalry",
+  artillery: "Artillery",
+  special: "Special",
+};
+
+export const ERA_LABEL: Record<Era, string> = {
+  prehistoric: "Prehistoric",
+  ancient: "Ancient",
+  medieval: "Medieval",
+  modern: "Modern",
+  futuristic: "Futuristic",
+  fantastical: "Fantastical",
+};
 
 export const TYPE_SHORT: Record<MilitaryType, string> = {
   infantry: "Inf",
@@ -58,7 +75,10 @@ export function describeEvent(state: GameState, e: GameEvent): { text: string; f
     case "recruited":
       return { text: `${factionName(state, e.faction)} recruited ${unitFor(e.squad.type, e.squad.era).name}`, faction: e.faction };
     case "researched":
-      return { text: `${factionName(state, e.faction)} reached ${e.era} ${e.type}`, faction: e.faction };
+      return {
+        text: `${factionName(state, e.faction)} unlocked ${unitFor(e.type, e.era).name} (${ERA_LABEL[e.era]} ${TYPE_LABEL[e.type]})`,
+        faction: e.faction,
+      };
     case "built":
       return { text: `${factionName(state, e.faction)} built a ${e.building} in ${provinceName(state, e.province)}`, faction: e.faction };
     case "desertion":

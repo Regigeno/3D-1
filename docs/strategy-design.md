@@ -159,6 +159,38 @@ Notes:
   knocked off.
 - Ancient Ranged is **Archer** because Slinger moved to Prehistoric.
 
+### 7.4.1 Counters and armor
+
+Damage between two units is multiplied by a type counter and reduced by the
+defender's armor. Squads prefer to target types they counter, and the enemy
+front line (Infantry, Special) draws extra attention.
+
+| Attacker | Bonus damage vs |
+|---|---|
+| Infantry | Cavalry ×1.6 |
+| Ranged | Infantry ×1.35, Special ×1.25 |
+| Cavalry | Ranged ×1.7, Artillery ×1.7 |
+| Artillery | Infantry ×1.5, Special ×1.5 |
+| Special | Infantry ×1.3, Cavalry ×1.3 |
+
+| Era | Armor |
+|---|---|
+| Prehistoric | 0% |
+| Ancient | 10% |
+| Medieval | 20% |
+| Modern | 25% |
+| Futuristic | 40% |
+| Fantastical | 5% |
+
+- Fantastical weapons are magic: they ignore armor and deal 60% more damage,
+  but Fantastical units have 10% less health. At equal squad counts they beat
+  Modern and lose to Futuristic.
+- At equal gold, base stats give every type roughly the same health and damage
+  per gold, so the counters decide the fight.
+- In auto-resolved battles each side also rolls a luck factor (±15%), and the
+  defender gets +10%. An even mirror match goes to the attacker about a quarter
+  of the time.
+
 ### 7.5 Squads and armies
 
 - Armies are written as a composition, e.g. `3 inf / 2 ran / 5 cav / 1 art / 0 spe`.

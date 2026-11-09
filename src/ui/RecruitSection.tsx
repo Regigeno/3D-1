@@ -1,14 +1,7 @@
 import { MAX_SQUADS_PER_ARMY, MILITARY_TYPES, SQUAD_SIZE, armiesAt, bestMainEra, hasEra, unitFor, type Era, type MilitaryType } from "../engine";
+import { TYPE_LABEL } from "../game/describe";
 import type { GameSession } from "../game/session";
 import { Cost } from "./Cost";
-
-const TYPE_LABEL: Record<MilitaryType, string> = {
-  infantry: "Infantry",
-  ranged: "Ranged",
-  cavalry: "Cavalry",
-  artillery: "Artillery",
-  special: "Special",
-};
 
 export function RecruitSection({ session, province }: { session: GameSession; province: string }) {
   const { state } = session;
