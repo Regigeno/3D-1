@@ -8,7 +8,13 @@ const RESOURCES: Array<{ key: ResourceKind; label: string; icon: string }> = [
   { key: "energy", label: "Energy", icon: "⚡" },
 ];
 
-export function TopBar({ session, onQuit }: { session: GameSession; onQuit(): void }) {
+interface Props {
+  session: GameSession;
+  onQuit(): void;
+  onToggleTreasury(): void;
+}
+
+export function TopBar({ session, onQuit, onToggleTreasury }: Props) {
   const { state } = session;
   const me = state.factions[session.viewer]!;
   const income = factionIncome(state, me.id);
@@ -22,7 +28,7 @@ export function TopBar({ session, onQuit }: { session: GameSession; onQuit(): vo
         <strong>{me.name}</strong>
       </div>
       <div className="turn">Turn {state.turn}</div>
-      <div className="resources">
+      <button className="resources ghost" onClick={onToggleTreasury} title="Show income and upkeep">
         {RESOURCES.map(({ key, label, icon }) => {
           const delta = income[key] - (key === "gold" ? upkeep : 0);
           return (
@@ -36,7 +42,7 @@ export function TopBar({ session, onQuit }: { session: GameSession; onQuit(): vo
             </div>
           );
         })}
-      </div>
+      </button>
       <div className="spacer" />
       {!session.isHumanTurn && !state.winner && <span className="muted">{active.name} is thinking…</span>}
       <button className="ghost" onClick={onQuit}>

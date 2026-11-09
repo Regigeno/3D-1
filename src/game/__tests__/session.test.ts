@@ -59,6 +59,27 @@ describe("GameSession", () => {
     expect(session.log.some((e) => e.text.startsWith("Battle at B"))).toBe(true);
   });
 
+  it("keeps a battle report for battles a human fought", () => {
+    const session = readySession();
+    session.state.provinces.B!.owner = "blue";
+    session.state.provinces.B!.buildings.push("fort");
+    session.selectArmy(redArmy(session).id);
+    session.clickProvince("B");
+    const report = session.battleReport!;
+    expect(report.battle.province).toBe("B");
+    expect(report.result.attackerSurvivors).toHaveLength(report.battle.attacker.squads.length);
+    session.dismissBattleReport();
+    expect(session.battleReport).toBeNull();
+  });
+
+  it("checks commands without applying them", () => {
+    const session = readySession();
+    const before = session.state;
+    expect(session.check({ kind: "recruit", province: "A", type: "infantry" })).toBeNull();
+    expect(session.check({ kind: "build", province: "A", building: "barracks" })).toBe("Already built");
+    expect(session.state).toBe(before);
+  });
+
   it("reports rejected commands without changing state", () => {
     const session = readySession();
     const before = session.state;

@@ -95,6 +95,15 @@ describe("recruiting and research", () => {
     expect(armyOf(s, "red").squads[0]).toEqual({ type: "infantry", era: "ancient", soldiers: 5 });
   });
 
+  it("disbands squads and removes an army left empty", () => {
+    const s = newLineGame();
+    const id = armyOf(s, "red").id;
+    const partial = run(s, { kind: "disband", army: id, squads: [0] });
+    expect(partial.armies[id]!.squads.map((q) => q.type)).toEqual(["infantry", "ranged"]);
+    const all = run(partial, { kind: "disband", army: id, squads: [0, 1] });
+    expect(all.armies[id]).toBeUndefined();
+  });
+
   it("gates power plants behind a Modern era", () => {
     const s = newLineGame();
     s.factions.red!.resources.gold = 100;

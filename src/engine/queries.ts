@@ -23,6 +23,7 @@ import {
   type Relation,
   type Resources,
   type ScenarioProvince,
+  type Squad,
 } from "./types";
 
 export function relationKey(a: string, b: string): string {
@@ -67,6 +68,13 @@ export function hasEra(state: GameState, faction: string, type: MilitaryType, er
 
 export function hasAnyModern(state: GameState, faction: string): boolean {
   return MILITARY_TYPES.some((t) => ERA_TIER[bestMainEra(state, faction, t)] >= ERA_TIER.modern);
+}
+
+/** Pays the gold difference (at least 1) plus the new era's full mana/energy cost. */
+export function upgradeCost(squad: Squad, target: Era): Cost {
+  const oldCost = unitFor(squad.type, squad.era).cost;
+  const newCost = unitFor(squad.type, target).cost;
+  return { ...newCost, gold: Math.max(1, (newCost.gold ?? 0) - (oldCost.gold ?? 0)) };
 }
 
 export function canAfford(resources: Resources, cost: Cost): boolean {

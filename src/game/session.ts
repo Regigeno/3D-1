@@ -2,10 +2,14 @@ import {
   applyCommand,
   createGame,
   generateRandomScenario,
-  runPendingBattle,
+  placeholderResolver,
+  resolveBattle,
+  scenarioProvince,
+  type BattleResult,
   type Command,
   type GameEvent,
   type GameState,
+  type PendingBattle,
   type Scenario,
 } from "../engine";
 import { describeEvent } from "./describe";
@@ -31,6 +35,11 @@ export interface NewGameSettings {
   factions: number;
 }
 
+export interface BattleReport {
+  battle: PendingBattle;
+  result: BattleResult;
+}
+
 const MAX_LOG = 60;
 
 /**
@@ -43,6 +52,8 @@ export class GameSession {
   selection: Selection = { province: null, army: null };
   log: LogEntry[] = [];
   lastError: string | null = null;
+  /** The most recent battle a human faction fought, until the player dismisses it. */
+  battleReport: BattleReport | null = null;
   version = 0;
 
   private listeners = new Set<() => void>();
@@ -159,13 +170,30 @@ export class GameSession {
     return targets;
   }
 
+  /** Why a command would be rejected right now, or null if it is legal. Does not change anything. */
+  check(command: Command): string | null {
+    const result = applyCommand(this.state, command);
+    return result.ok ? null : result.error;
+  }
+
+  dismissBattleReport(): void {
+    this.battleReport = null;
+    this.emit();
+  }
+
   private resolveBattles(): void {
     // Placeholder until physics battles (build step 6): resolve instantly.
     while (this.state.pendingBattle) {
-      const result = runPendingBattle(this.state);
-      if (!result.ok) throw new Error(result.error);
-      this.state = result.state;
-      this.record(result.events);
+      const battle = this.state.pendingBattle;
+      const result = placeholderResolver(battle, scenarioProvince(this.state, battle.province).terrain);
+      const resolved = resolveBattle(this.state, result);
+      if (!resolved.ok) throw new Error(resolved.error);
+      const humanInvolved = [battle.attacker.faction, battle.defender.faction].some(
+        (f) => f && this.state.factions[f]?.controller === "human",
+      );
+      if (humanInvolved) this.battleReport = { battle, result };
+      this.state = resolved.state;
+      this.record(resolved.events);
     }
   }
 

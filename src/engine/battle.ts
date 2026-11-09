@@ -113,6 +113,15 @@ export function resolveBattle(input: GameState, result: BattleResult): CommandRe
     if (army) army.squads = applySurvivors(army.squads, survivorsByArmy.get(armyId) ?? []);
   }
 
+  events.push({
+    kind: "battle-resolved",
+    battleId: battle.id,
+    winner: result.winner,
+    province: battle.province,
+    attacker: battle.attacker.faction,
+    defender: battle.defender.faction,
+  });
+
   if (result.winner === "attacker") {
     for (const armyId of defenderArmyIds) {
       const army = state.armies[armyId];
@@ -141,7 +150,6 @@ export function resolveBattle(input: GameState, result: BattleResult): CommandRe
 
   state.pendingBattle = null;
   removeEmptyArmies(state);
-  events.push({ kind: "battle-resolved", battleId: battle.id, winner: result.winner, province: battle.province });
   checkEliminations(state, events);
   checkVictory(state, events);
   return { ok: true, state, events };

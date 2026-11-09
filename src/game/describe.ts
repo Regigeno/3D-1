@@ -49,8 +49,12 @@ export function describeEvent(state: GameState, e: GameEvent): { text: string; f
         text: `Battle at ${provinceName(state, e.battle.province)}: ${factionName(state, e.battle.attacker.faction)} attacks ${factionName(state, e.battle.defender.faction)}`,
         faction: e.battle.attacker.faction,
       };
-    case "battle-resolved":
-      return { text: `Battle at ${provinceName(state, e.province)}: ${e.winner} wins`, faction: null };
+    case "battle-resolved": {
+      const winner = e.winner === "attacker" ? e.attacker : e.defender;
+      return { text: `${factionName(state, winner)} won the battle at ${provinceName(state, e.province)}`, faction: winner };
+    }
+    case "disbanded":
+      return { text: `Disbanded ${e.squads.length} squad${e.squads.length === 1 ? "" : "s"}`, faction: null };
     case "recruited":
       return { text: `${factionName(state, e.faction)} recruited ${unitFor(e.squad.type, e.squad.era).name}`, faction: e.faction };
     case "researched":
