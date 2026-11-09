@@ -150,9 +150,14 @@ function eraUpkeep(era: Era): number {
   return 1 + Math.floor(ERA_TIER[era] / 2);
 }
 
+/** Guns mounted on what are otherwise melee archetypes (tanks, drones, hover bikes) shoot from this far. */
+const MOUNTED_GUN_RANGE = 20;
+
 function buildUnit(type: MilitaryType, era: Era): UnitDef {
   const a = ARCHETYPES[type];
   const scale = 1 + ERA_TIER[era] * 0.5;
+  const kind = weaponKindFor(type, era);
+  const shoots = kind === "projectile" || kind === "beam";
   return {
     id: `${era}-${type}`,
     name: UNIT_NAMES[type][era],
@@ -165,9 +170,9 @@ function buildUnit(type: MilitaryType, era: Era): UnitDef {
     mass: a.mass,
     speed: a.speed,
     weapon: {
-      kind: weaponKindFor(type, era),
+      kind,
       damage: Math.round(a.weapon.damage * scale * (ERA_DAMAGE_FACTOR[era] ?? 1)),
-      range: a.weapon.range,
+      range: shoots ? Math.max(a.weapon.range, MOUNTED_GUN_RANGE) : a.weapon.range,
       cooldown: a.weapon.cooldown,
       ignoresArmor: era === "fantastical",
     },

@@ -64,6 +64,7 @@ export function buildBattle(state: GameState, army: Army, from: string, province
     attacker: { faction: army.owner, squads: army.squads.map((s) => ({ ...s })) },
     defender: { faction: defenderFaction, squads },
     defenderSources: sources,
+    fortified: owner === defenderFaction && !!state.provinces[province]?.buildings.includes("fort"),
   };
 }
 
