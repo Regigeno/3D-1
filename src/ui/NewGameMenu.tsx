@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { PRESETS, type Difficulty, type VictoryCondition } from "../engine";
+import { useMemo, useRef, useState } from "react";
+import { PRESETS, generateRandomScenario, presetScenario, type Controller, type Difficulty, type VictoryCondition } from "../engine";
 import { parseSave, saveFileName, type SaveData, type SaveSummary } from "../game/save";
 import type { NewGameSettings } from "../game/session";
 import { AUTOSAVE_ID } from "../game/storage";
@@ -10,14 +10,17 @@ import { SettingsPanel } from "./SettingsPanel";
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
 
 const DIFFICULTIES: Array<{ id: Difficulty; label: string; hint: string }> = [
-  { id: "easy", label: "Easy", hint: "Rivals earn 15% less and only attack with clear odds." },
-  { id: "normal", label: "Normal", hint: "Rivals play by your rules, with your income." },
-  { id: "hard", label: "Hard", hint: "Rivals earn 25% more and take bolder risks. They never see through fog." },
+  { id: "beginner", label: "Beginner", hint: "Rivals wander, rarely attack, and ignore most of the map." },
+  { id: "easy", label: "Easy", hint: "Rivals expand slowly and only fight when they are sure to win." },
+  { id: "normal", label: "Normal", hint: "Rivals plan, counter your armies, and press a war. Same income as you." },
+  { id: "hard", label: "Hard", hint: "Rivals look further ahead and take closer fights. They are not richer." },
+  { id: "petty", label: "Petty", hint: "You earn 15% less. Rivals play at their sharpest." },
 ];
 
 interface Props {
   onStart(settings: NewGameSettings): void;
   onLoad(save: SaveData): void;
+  onSandbox(): void;
 }
 
 function SaveRow({ summary, onLoad, onDelete }: { summary: SaveSummary; onLoad(): void; onDelete(): void }) {
@@ -53,9 +56,9 @@ function SaveRow({ summary, onLoad, onDelete }: { summary: SaveSummary; onLoad()
   );
 }
 
-export function NewGameMenu({ onStart, onLoad }: Props) {
+export function NewGameMenu({ onStart, onLoad, onSandbox }: Props) {
   const [map, setMap] = useState("random");
-  const [humanFaction, setHumanFaction] = useState<string | undefined>(undefined);
+  const [seats, setSeats] = useState<Record<string, Controller>>({});
   const [seed, setSeed] = useState(randomSeed);
   const [provinces, setProvinces] = useState(40);
   const [factions, setFactions] = useState(4);
@@ -69,7 +72,18 @@ export function NewGameMenu({ onStart, onLoad }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const preview = useMemo(() => (map === "random" ? generateRandomScenario({ seed, provinces, factions }) : presetScenario(map)), [map, seed, provinces, factions]);
+  const resolvedSeats = useMemo(() => {
+    const next: Record<string, Controller> = {};
+    preview.factions.forEach((faction, index) => {
+      const chosen = seats[faction.id];
+      next[faction.id] = chosen === "human" || chosen === "ai" ? chosen : index === 0 ? "human" : "ai";
+    });
+    return next;
+  }, [preview.factions, seats]);
+
   const preset = PRESETS.find((p) => p.id === map);
+  const humans = preview.factions.filter((f) => resolvedSeats[f.id] === "human").length;
   const autosave = list.find((s) => s.id === AUTOSAVE_ID && !s.finished);
   const victory = (): VictoryCondition =>
     victoryKind === "domination" ? { kind: "domination", percent } : victoryKind === "capitals" ? { kind: "capitals" } : { kind: "score", turnLimit };
@@ -98,7 +112,7 @@ export function NewGameMenu({ onStart, onLoad }: Props) {
           className="menu-card panel"
           onSubmit={(e) => {
             e.preventDefault();
-            onStart({ map, seed, provinces, factions, difficulty, victory: victory(), humanFaction: preset ? (humanFaction ?? preset.factions[0]!.id) : undefined });
+            onStart({ map, seed, provinces, factions, difficulty, victory: victory(), seats: resolvedSeats });
           }}
         >
           <h1>Petty Empires</h1>
@@ -117,10 +131,7 @@ export function NewGameMenu({ onStart, onLoad }: Props) {
             <span>Map</span>
             <select
               value={map}
-              onChange={(e) => {
-                setMap(e.target.value);
-                setHumanFaction(undefined);
-              }}
+              onChange={(e) => setMap(e.target.value)}
             >
               <option value="random">Random island</option>
               {PRESETS.map((p) => (
@@ -132,18 +143,28 @@ export function NewGameMenu({ onStart, onLoad }: Props) {
             <span className="small">{preset ? preset.description : "A new island every time. Pick its size and how many empires share it."}</span>
           </label>
 
-          {preset && (
-            <label>
-              <span>Play as</span>
-              <select value={humanFaction ?? preset.factions[0]!.id} onChange={(e) => setHumanFaction(e.target.value)}>
-                {preset.factions.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+          <div className="field">
+            <span>Seats</span>
+            <ul className="seat-list">
+              {preview.factions.map((faction) => (
+                <li key={faction.id} className="seat-row">
+                  <span className="swatch" style={{ background: faction.color }} />
+                  <span className="name">{faction.name}</span>
+                  <div className="segmented" role="radiogroup" aria-label={`${faction.name} seat`}>
+                    <button type="button" role="radio" aria-checked={resolvedSeats[faction.id] === "human"} className={resolvedSeats[faction.id] === "human" ? "active" : undefined} onClick={() => setSeats((prev) => ({ ...prev, [faction.id]: "human" }))}>
+                      Human
+                    </button>
+                    <button type="button" role="radio" aria-checked={resolvedSeats[faction.id] !== "human"} className={resolvedSeats[faction.id] === "human" ? undefined : "active"} onClick={() => setSeats((prev) => ({ ...prev, [faction.id]: "ai" }))}>
+                      AI
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <span className="small">
+              {humans === 0 ? "Choose at least one human seat." : humans > 1 ? "Pass the device when the next human's turn begins." : "Choose who plays each empire."}
+            </span>
+          </div>
 
           <label>
             <span>Seed</span>
@@ -171,7 +192,7 @@ export function NewGameMenu({ onStart, onLoad }: Props) {
 
           <div className="field">
             <span>Difficulty</span>
-            <div className="segmented" role="radiogroup" aria-label="Difficulty">
+            <div className="difficulty-picks" role="radiogroup" aria-label="Difficulty">
               {DIFFICULTIES.map((d) => (
                 <button
                   key={d.id}
@@ -211,8 +232,11 @@ export function NewGameMenu({ onStart, onLoad }: Props) {
             </label>
           )}
 
-          <button type="submit" className={autosave ? "" : "primary"}>
+          <button type="submit" className={autosave ? "" : "primary"} disabled={humans < 1}>
             Start campaign
+          </button>
+          <button type="button" onClick={onSandbox}>
+            Sandbox battle
           </button>
 
           <div className="menu-links">

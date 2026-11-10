@@ -52,7 +52,7 @@ export interface Scenario {
 export type Controller = "human" | "ai";
 export const AI_PERSONALITIES = ["aggressive", "builder", "opportunist"] as const;
 export type AiPersonality = (typeof AI_PERSONALITIES)[number];
-export type Difficulty = "easy" | "normal" | "hard";
+export type Difficulty = "beginner" | "easy" | "normal" | "hard" | "petty";
 
 export type VictoryCondition =
   | { kind: "domination"; percent: number }
@@ -74,6 +74,8 @@ export interface FactionState {
 export interface ProvinceState {
   owner: string | null;
   buildings: Building[];
+  /** People living here. Recruiting a squad spends some of them. */
+  population: number;
 }
 
 export interface Squad {

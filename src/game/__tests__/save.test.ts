@@ -43,6 +43,13 @@ describe("saves", () => {
     expect(() => parseSave(JSON.stringify({ format: "petty-empires-save", version: 1, state: { version: 1 } }))).toThrow(/damaged/);
   });
 
+  it("fills population when an older save omitted it", () => {
+    const save = playedSession().toSave();
+    for (const province of Object.values(save.state.provinces)) delete (province as { population?: number }).population;
+    const loaded = parseSave(JSON.stringify(save));
+    for (const province of Object.values(loaded.state.provinces)) expect(province.population).toBeGreaterThan(0);
+  });
+
   it("names exported files after the faction and turn", () => {
     expect(saveFileName(playedSession().toSave())).toBe("petty-empires-red-turn-2.json");
   });

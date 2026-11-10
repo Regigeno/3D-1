@@ -1,3 +1,5 @@
+import { rules } from "../engine";
+
 const MAP_KEYS: Array<[string, string]> = [
   ["Select a province or army", "Left click"],
   ["Move or attack with the selected army", "Click a highlighted province"],
@@ -36,7 +38,7 @@ export function HelpPanel({ onClose, welcome = false }: { onClose(): void; welco
                 <strong>Expand.</strong> Select your army and click a neighboring province. Neutral land is captured by walking in.
               </li>
               <li>
-                <strong>Grow.</strong> Click a province you own to build (Markets for gold, Libraries for knowledge, Barracks to recruit) and recruit squads.
+                <strong>Grow.</strong> Click a province you own to build and recruit. One squad costs {rules.POP_PER_SQUAD} people living there. Markets and barracks help population grow. Unpaid troops stay; you just run out of gold.
               </li>
               <li>
                 <strong>Research.</strong> Each military type climbs the eras on its own, so mix and match: Futuristic snipers can escort Prehistoric wolf sleds.

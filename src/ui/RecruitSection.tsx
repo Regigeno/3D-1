@@ -1,4 +1,4 @@
-import { MAX_SQUADS_PER_ARMY, MILITARY_TYPES, SQUAD_SIZE, armiesAt, bestMainEra, hasEra, unitFor, type Era, type MilitaryType } from "../engine";
+import { MAX_SQUADS_PER_ARMY, MILITARY_TYPES, SQUAD_SIZE, armiesAt, bestMainEra, hasEra, rules, unitFor, type Era, type MilitaryType } from "../engine";
 import { TYPE_LABEL } from "../game/describe";
 import type { GameSession } from "../game/session";
 import { Cost } from "./Cost";
@@ -16,6 +16,11 @@ export function RecruitSection({ session, province }: { session: GameSession; pr
   return (
     <section>
       <h3>Recruit</h3>
+      <p className="muted small">
+        {Math.floor((session.state.provinces[province]?.population ?? 0) / rules.POP_PER_SQUAD)} squad
+        {Math.floor((session.state.provinces[province]?.population ?? 0) / rules.POP_PER_SQUAD) === 1 ? "" : "s"} can be raised from{" "}
+        {session.state.provinces[province]?.population ?? 0} people.
+      </p>
       <div className="option-list">
         {options.map(({ type, era }) => {
           const unit = unitFor(type, era);

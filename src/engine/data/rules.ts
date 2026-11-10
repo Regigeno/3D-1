@@ -46,12 +46,67 @@ export const RESEARCH_COST: Record<Exclude<Era, "prehistoric">, number> = {
   fantastical: 30,
 };
 
-/** Difficulty changes only how much computer factions earn; they never see through fog of war. */
-export const AI_INCOME_MULTIPLIER: Record<Difficulty, number> = {
-  easy: 0.85,
-  normal: 1,
-  hard: 1.25,
+/**
+ * How sharply a computer faction plays. Income is the same on every difficulty
+ * except Petty, which taxes the human player. The AI never sees through fog.
+ */
+export interface DifficultyMind {
+  /** Added to the personality's attack threshold. Higher means they only take sure fights. */
+  attackShift: number;
+  /** Chance to skip a planning step, so they expand and build more slowly. */
+  skipPhase: number;
+  /** How far they look through friendly land for a target. */
+  searchDepth: number;
+  /** Recruit counters to what they can see, instead of a flat mix. */
+  counters: boolean;
+  /** Split armies to grab several empty provinces at once. */
+  splits: boolean;
+  /** Open wars, break treaties, and bargain. When false, they accept every offer. */
+  schemes: boolean;
+}
+
+export const DIFFICULTY_MIND: Record<Difficulty, DifficultyMind> = {
+  beginner: { attackShift: 0.4, skipPhase: 0.55, searchDepth: 1, counters: false, splits: false, schemes: false },
+  easy: { attackShift: 0.22, skipPhase: 0.3, searchDepth: 3, counters: false, splits: false, schemes: false },
+  normal: { attackShift: 0, skipPhase: 0, searchDepth: 8, counters: true, splits: true, schemes: true },
+  hard: { attackShift: -0.12, skipPhase: 0, searchDepth: 12, counters: true, splits: true, schemes: true },
+  petty: { attackShift: -0.12, skipPhase: 0, searchDepth: 12, counters: true, splits: true, schemes: true },
 };
+
+/** Petty is the one difficulty that changes income: the human earns 15% less. */
+export const PLAYER_HANDICAP = 0.85;
+
+/** People a province starts with, before the capital bonus. */
+export const TERRAIN_POPULATION: Record<Terrain, number> = {
+  plains: 12,
+  coast: 10,
+  forest: 8,
+  hills: 8,
+  desert: 6,
+  wasteland: 5,
+  mountains: 4,
+};
+
+export const CAPITAL_POPULATION_BONUS = 8;
+/** People spent to raise one squad. */
+export const POP_PER_SQUAD = 4;
+export const POPULATION_CAP = 30;
+export const BARRACKS_POPULATION_BONUS = 6;
+
+export function startingPopulation(terrain: Terrain, capital: boolean): number {
+  return TERRAIN_POPULATION[terrain] + (capital ? CAPITAL_POPULATION_BONUS : 0);
+}
+
+export function populationGrowth(buildings: readonly Building[]): number {
+  let growth = 1;
+  if (buildings.includes("market")) growth += 1;
+  if (buildings.includes("barracks")) growth += 1;
+  return growth;
+}
+
+export function populationCap(buildings: readonly Building[]): number {
+  return POPULATION_CAP + (buildings.includes("barracks") ? BARRACKS_POPULATION_BONUS : 0);
+}
 
 export const MIN_PEACE_TURNS = 10;
 export const TREATY_BREAK_TRUST_PENALTY = 30;

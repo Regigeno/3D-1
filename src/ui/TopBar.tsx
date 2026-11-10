@@ -1,4 +1,4 @@
-import { factionIncome, factionUpkeep, type ResourceKind } from "../engine";
+import { collectedIncome, factionUpkeep, type ResourceKind } from "../engine";
 import { incomingProposals } from "../game/diplomacy";
 import { affordableResearch } from "../game/research";
 import type { GameSession } from "../game/session";
@@ -22,7 +22,7 @@ interface Props {
 export function TopBar({ session, onMenu, onToggleTreasury, onOpenResearch, onOpenDiplomacy }: Props) {
   const { state } = session;
   const me = state.factions[session.viewer]!;
-  const income = factionIncome(state, me.id);
+  const income = collectedIncome(state, me.id);
   const upkeep = factionUpkeep(state, me.id);
   const active = state.factions[state.activeFaction]!;
   const researchable = affordableResearch(state, me.id).length;

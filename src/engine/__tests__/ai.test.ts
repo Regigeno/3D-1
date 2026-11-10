@@ -59,7 +59,7 @@ describe("opponent AI", () => {
     }
   }, 120_000);
 
-  it("gives computer factions more income on hard and less on easy", () => {
+  it("pays computer factions the same gold on every difficulty", () => {
     const gold = (difficulty: Difficulty) => {
       // Blue (AI) collects income when red ends its first turn.
       const s = newLineGame({ difficulty });
@@ -67,17 +67,37 @@ describe("opponent AI", () => {
       const result = playAiTurn({ ...s, factions: { ...s.factions, red: { ...s.factions.red!, controller: "ai" } } }, settle);
       return result.state.factions.blue!.resources.gold - blueBefore;
     };
-    expect(gold("hard")).toBeGreaterThan(gold("normal"));
-    expect(gold("normal")).toBeGreaterThan(gold("easy"));
+    const normal = gold("normal");
+    expect(gold("beginner")).toBe(normal);
+    expect(gold("easy")).toBe(normal);
+    expect(gold("hard")).toBe(normal);
+    expect(gold("petty")).toBe(normal);
+  });
+
+  it("taxes only the human player on petty", () => {
+    const humanGold = (difficulty: Difficulty) => newLineGame({ difficulty }).factions.red!.resources.gold;
+    expect(humanGold("petty")).toBeLessThan(humanGold("normal"));
+    expect(humanGold("hard")).toBe(humanGold("beginner"));
+  });
+
+  it("does not attack a defended neighbor on beginner", () => {
+    const s = newLineGame({ difficulty: "beginner" });
+    s.activeFaction = "blue";
+    s.provinces.D = { ...s.provinces.D!, owner: "red", buildings: s.provinces.D!.buildings };
+    const red = armyOf(s, "red");
+    red.location = "D";
+    const { commands } = playAiTurn(s, settle);
+    expect(commands.some((c) => c.kind === "move" && "to" in c && c.to === "D")).toBe(false);
+    expect(commands.at(-1)).toEqual({ kind: "end-turn" });
   });
 
   it("sues a much stronger human neighbor for peace, and the human can accept", () => {
     const s = newLineGame();
     s.turn = 3;
     s.activeFaction = "blue";
-    s.provinces.B = { owner: "red", buildings: [] };
-    s.provinces.C = { owner: "red", buildings: [] };
-    s.provinces.D = { owner: "blue", buildings: [] };
+    s.provinces.B = { ...s.provinces.B!, owner: "red", buildings: [] };
+    s.provinces.C = { ...s.provinces.C!, owner: "red", buildings: [] };
+    s.provinces.D = { ...s.provinces.D!, owner: "blue", buildings: [] };
     const red = armyOf(s, "red");
     red.location = "C";
     red.squads = Array.from({ length: MAX_SQUADS_PER_ARMY }, () => ({ type: "infantry" as const, era: "medieval" as const, soldiers: 10 }));
@@ -91,7 +111,7 @@ describe("opponent AI", () => {
 
   it("does not see armies or forts hidden by fog of war", () => {
     const s = newLineGame();
-    s.provinces.D = { owner: "blue", buildings: ["fort"] };
+    s.provinces.D = { ...s.provinces.D!, owner: "blue", buildings: ["fort"] };
     const blueArmy = Object.values(s.armies).find((a) => a.owner === "blue")!;
     blueArmy.location = "D";
     const visible = visibleProvinces(s, "red");

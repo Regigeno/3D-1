@@ -1,4 +1,4 @@
-import { STARTING_ARMY, STARTING_BUILDINGS, STARTING_RESOURCES } from "./data/rules";
+import { STARTING_ARMY, STARTING_BUILDINGS, STARTING_RESOURCES, startingPopulation } from "./data/rules";
 import { SQUAD_SIZE } from "./data/units";
 import { relationKey } from "./queries";
 import { beginFactionTurn } from "./turn";
@@ -52,7 +52,12 @@ export function createGame(scenario: Scenario, options: GameOptions): { state: G
 
   for (const p of scenario.provinces) {
     const owner = capitalOwner.get(p.id) ?? null;
-    state.provinces[p.id] = { owner, buildings: owner ? [...STARTING_BUILDINGS] : [] };
+    const capital = capitalOwner.has(p.id);
+    state.provinces[p.id] = {
+      owner,
+      buildings: owner ? [...STARTING_BUILDINGS] : [],
+      population: startingPopulation(p.terrain, capital),
+    };
   }
 
   for (const [index, f] of scenario.factions.entries()) {

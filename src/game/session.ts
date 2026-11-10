@@ -14,6 +14,7 @@ import {
   type BattleResolver,
   type BattleResult,
   type Command,
+  type Controller,
   type Difficulty,
   type GameEvent,
   type GameState,
@@ -42,8 +43,10 @@ export interface LogEntry {
 export interface GameRules {
   difficulty: Difficulty;
   victory: VictoryCondition;
-  /** The faction the player controls; defaults to the scenario's first faction. */
+  /** The faction the player controls; defaults to the scenario's first faction. Ignored when `seats` is set. */
   humanFaction?: string;
+  /** Who plays each faction. Missing ids are computer-controlled. At least one human is kept. */
+  seats?: Record<string, Controller>;
 }
 
 export interface NewGameSettings extends Partial<GameRules> {
@@ -72,6 +75,16 @@ export interface SessionOptions {
    * e.g. `(fn) => setTimeout(fn, 0)`. Without it they run to completion at once.
    */
   schedule?: (fn: () => void) => void;
+}
+
+function seatControllers(scenario: Scenario, rules: Partial<GameRules>): Record<string, Controller> {
+  if (rules.seats && Object.keys(rules.seats).length > 0) {
+    const controllers = Object.fromEntries(scenario.factions.map((f) => [f.id, rules.seats?.[f.id] === "human" ? "human" : "ai"])) as Record<string, Controller>;
+    if (!Object.values(controllers).includes("human") && scenario.factions[0]) controllers[scenario.factions[0].id] = "human";
+    return controllers;
+  }
+  const human = rules.humanFaction && scenario.factions.some((f) => f.id === rules.humanFaction) ? rules.humanFaction : scenario.factions[0]!.id;
+  return { [human]: "human" };
 }
 
 const MAX_LOG = 60;
@@ -120,12 +133,11 @@ export class GameSession {
   }
 
   static fromScenario(scenario: Scenario, seed: number, rules: Partial<GameRules> = {}, options: SessionOptions = {}): GameSession {
-    const human = rules.humanFaction && scenario.factions.some((f) => f.id === rules.humanFaction) ? rules.humanFaction : scenario.factions[0]!.id;
     const { state, events } = createGame(scenario, {
       seed,
       difficulty: rules.difficulty ?? DEFAULT_RULES.difficulty,
       victory: rules.victory ?? DEFAULT_RULES.victory,
-      controllers: { [human]: "human" },
+      controllers: seatControllers(scenario, rules),
     });
     return new GameSession(state, events, options);
   }
