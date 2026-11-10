@@ -37,6 +37,12 @@ export function GameScreen({ session, rapier, onQuit }: { session: GameSession; 
   const [hover, setHover] = useState<Hover | null>(null);
   const [showTreasury, setShowTreasury] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(() => (settings.get().seenIntro ? null : "welcome"));
+  const humanIds = session.state.factionOrder.filter((id) => session.state.factions[id]?.controller === "human");
+  const passKey = `${session.state.turn}:${session.state.activeFaction}`;
+  const [acked, setAcked] = useState<string | null>(() => (humanIds.length > 1 ? null : passKey));
+  const conceal = humanIds.length > 1 && acked !== passKey;
+  const concealRef = useRef(conceal);
+  concealRef.current = conceal;
   const [watching, setWatching] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ id: number; text: string } | null>(null);
   const panelRef = useRef(panel);
@@ -121,7 +127,8 @@ export function GameScreen({ session, rapier, onQuit }: { session: GameSession; 
     const proposals = incomingProposals(session.state, session.viewer);
     if (mine && !wasMyTurn.current && !gameOver) {
       sound.play("turn");
-      setNotice({ id: Date.now(), text: `Turn ${session.state.turn}: your move` });
+      const label = humanIds.length > 1 ? `${factionName(session.state, session.state.activeFaction)}'s turn` : `Turn ${session.state.turn}: your move`;
+      setNotice({ id: Date.now(), text: label });
     }
     if (proposals.length > proposalCount.current && mine) {
       const p = proposals.at(-1)!;
@@ -146,6 +153,7 @@ export function GameScreen({ session, rapier, onQuit }: { session: GameSession; 
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (concealRef.current) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
       if (watchedRef.current) return;
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -236,6 +244,29 @@ export function GameScreen({ session, rapier, onQuit }: { session: GameSession; 
       )}
       {panel === "settings" && <SettingsPanel onClose={closePanel} />}
       {(panel === "help" || panel === "welcome") && <HelpPanel welcome={panel === "welcome"} onClose={closePanel} />}
+      {conceal && (
+        <div className="pass-cover">
+          <div className="panel dialog pass-card">
+            {session.isHumanTurn ? (
+              <>
+                <h2>Pass the device</h2>
+                <p>
+                  <span className="swatch" style={{ background: session.state.factions[session.state.activeFaction]?.color }} />
+                  {factionName(session.state, session.state.activeFaction)} is up. The map stays hidden until you continue.
+                </p>
+                <button className="primary" onClick={() => setAcked(passKey)}>
+                  I'm {factionName(session.state, session.state.activeFaction)}
+                </button>
+              </>
+            ) : (
+              <>
+                <h2>{factionName(session.state, session.state.activeFaction)} is thinking</h2>
+                <p className="muted">The map stays covered between human turns.</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

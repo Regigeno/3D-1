@@ -1,4 +1,4 @@
-import { validateScenario, type GameState } from "../engine";
+import { rules, validateScenario, type Difficulty, type GameState } from "../engine";
 import type { BattleReport, LogEntry } from "./session";
 
 export const SAVE_FORMAT = "petty-empires-save";
@@ -56,6 +56,7 @@ export function parseSave(text: string): SaveData {
   const errors = validateScenario(state.scenario);
   if (errors.length > 0) throw new Error(`This save is damaged: ${errors[0]}`);
   if (!state.factions[state.activeFaction]) throw new Error("This save is damaged: the active faction is missing.");
+  repairState(state);
   return {
     format: SAVE_FORMAT,
     version: SAVE_VERSION,
@@ -64,6 +65,21 @@ export function parseSave(text: string): SaveData {
     log: Array.isArray(save.log) ? save.log : [],
     battleReports: Array.isArray(save.battleReports) ? save.battleReports : [],
   };
+}
+
+const DIFFICULTIES: readonly Difficulty[] = ["beginner", "easy", "normal", "hard", "petty"];
+
+/** Older saves predate population and the wider difficulty list. */
+function repairState(state: GameState): void {
+  if (!DIFFICULTIES.includes(state.options.difficulty)) state.options.difficulty = "normal";
+  for (const province of state.scenario.provinces) {
+    const live = state.provinces[province.id];
+    if (!live) continue;
+    if (typeof live.population !== "number" || !Number.isFinite(live.population)) {
+      const capital = state.scenario.factions.some((f) => f.capital === province.id);
+      live.population = rules.startingPopulation(province.terrain, capital);
+    }
+  }
 }
 
 /** A file name like "petty-empires-crimson-horde-turn-12.json". */

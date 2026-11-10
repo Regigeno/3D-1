@@ -1,4 +1,4 @@
-import { armiesAt, garrisonSquadCount, isAllied, provinceIncome, relationBetween, scenarioProvince, visibleProvinces } from "../engine";
+import { armiesAt, garrisonSquadCount, isAllied, provinceIncome, relationBetween, rules, scenarioProvince, visibleProvinces } from "../engine";
 import { STATUS_LABEL } from "../game/diplomacy";
 import { TERRAIN_LABEL, factionName } from "../game/describe";
 import { BUILDING_INFO } from "../game/economy";
@@ -52,6 +52,11 @@ export function ProvincePanel({ session, targets, onFocus }: Props) {
       <dl className="facts">
         <dt>Terrain</dt>
         <dd>{TERRAIN_LABEL[info.terrain]}</dd>
+        <dt>Population</dt>
+        <dd>
+          {province.population}
+          {managing && <span className="muted"> · {Math.floor(province.population / rules.POP_PER_SQUAD)} squads</span>}
+        </dd>
         <dt>Income</dt>
         <dd>
           +{income.gold} gold
@@ -93,7 +98,7 @@ export function ProvincePanel({ session, targets, onFocus }: Props) {
         )}
       </section>
 
-      {managing && province.buildings.includes("barracks") && <RecruitSection session={session} province={id} />}
+      {managing && <RecruitSection session={session} province={id} />}
       {managing && <BuildSection session={session} province={id} />}
 
       <button className="ghost small" onClick={() => onFocus(id)}>

@@ -1,20 +1,21 @@
-import { AI_INCOME_MULTIPLIER, ARMY_MOVEMENT } from "./data/rules";
-import { ERA_TIER, unitFor } from "./data/units";
-import { factionIncome, factionScore, ownedProvinces } from "./queries";
+import { ARMY_MOVEMENT, populationCap, populationGrowth } from "./data/rules";
+import { unitFor } from "./data/units";
+import { collectedIncome, factionScore, ownedProvinces } from "./queries";
 import type { GameEvent, GameState } from "./types";
 
-/** Phase 1 of a faction's turn: income, upkeep, desertion, and fresh movement. */
+/** Phase 1 of a faction's turn: population, income, upkeep, and fresh movement. */
 export function beginFactionTurn(state: GameState, events: GameEvent[]): void {
   const faction = state.factions[state.activeFaction];
   if (!faction) throw new Error(`Unknown active faction ${state.activeFaction}`);
 
   state.proposals = state.proposals.filter((p) => p.from !== faction.id);
 
-  const gained = factionIncome(state, faction.id);
-  if (faction.controller === "ai") {
-    const k = AI_INCOME_MULTIPLIER[state.options.difficulty];
-    for (const key of Object.keys(gained) as (keyof typeof gained)[]) gained[key] = Math.round(gained[key] * k);
+  for (const id of ownedProvinces(state, faction.id)) {
+    const province = state.provinces[id]!;
+    province.population = Math.min(populationCap(province.buildings), province.population + populationGrowth(province.buildings));
   }
+
+  const gained = collectedIncome(state, faction.id);
   faction.resources.gold += gained.gold;
   faction.resources.knowledge += gained.knowledge;
   faction.resources.mana += gained.mana;
@@ -26,22 +27,9 @@ export function beginFactionTurn(state: GameState, events: GameEvent[]): void {
     for (const squad of army.squads) upkeep += unitFor(squad.type, squad.era).upkeep;
   }
   faction.resources.gold -= upkeep;
+  // Unpaid wages empty the treasury. The squads stay in the field.
+  if (faction.resources.gold < 0) faction.resources.gold = 0;
   events.push({ kind: "income", faction: faction.id, gained, upkeep });
-
-  // Unpaid upkeep: the cheapest, most depleted squads desert first until the books balance.
-  while (faction.resources.gold < 0) {
-    const candidates = armies.flatMap((army) => army.squads.map((squad, index) => ({ army, squad, index })));
-    if (candidates.length === 0) {
-      faction.resources.gold = 0;
-      break;
-    }
-    candidates.sort((x, y) => ERA_TIER[x.squad.era] - ERA_TIER[y.squad.era] || x.squad.soldiers - y.squad.soldiers);
-    const { army, squad, index } = candidates[0]!;
-    army.squads.splice(index, 1);
-    faction.resources.gold += unitFor(squad.type, squad.era).upkeep;
-    events.push({ kind: "desertion", faction: faction.id, armyId: army.id, squad });
-  }
-  removeEmptyArmies(state);
 
   for (const army of Object.values(state.armies)) {
     if (army.owner === faction.id) army.movementLeft = ARMY_MOVEMENT;

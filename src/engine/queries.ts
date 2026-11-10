@@ -4,6 +4,7 @@ import {
   FORT_GARRISON_SQUADS,
   LIBRARY_KNOWLEDGE,
   MARKET_GOLD,
+  PLAYER_HANDICAP,
   POWER_PLANT_ENERGY,
   POWER_PLANT_ENERGY_POWER_SITE,
   SCORE,
@@ -114,6 +115,15 @@ export function factionIncome(state: GameState, faction: string): Resources {
     total.energy += inc.energy;
   }
   return total;
+}
+
+/** Income actually collected this turn. Petty taxes every human resource by 15%. */
+export function collectedIncome(state: GameState, faction: string): Resources {
+  const gained = factionIncome(state, faction);
+  if (state.options.difficulty === "petty" && state.factions[faction]?.controller === "human") {
+    for (const key of Object.keys(gained) as (keyof Resources)[]) gained[key] = Math.round(gained[key] * PLAYER_HANDICAP);
+  }
+  return gained;
 }
 
 export function armyUpkeep(army: Army): number {

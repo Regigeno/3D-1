@@ -57,7 +57,7 @@ export function TreasuryPanel({ session, onClose }: { session: GameSession; onCl
           </tr>
         </tbody>
       </table>
-      {l.net.gold < 0 && <p className="warning small">You are losing gold. When it runs out, unpaid squads desert.</p>}
+      {l.net.gold < 0 && <p className="warning small">You are losing gold. When it runs out, recruiting waits. Troops stay in the field.</p>}
     </div>
   );
 }

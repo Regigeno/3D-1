@@ -4,6 +4,7 @@ import {
   BUILDING_COST,
   MIN_PEACE_TURNS,
   MOVE_COST,
+  POP_PER_SQUAD,
   RESEARCH_COST,
   TREATY_BREAK_TRUST_PENALTY,
 } from "./data/rules";
@@ -81,7 +82,7 @@ function handle(state: GameState, me: string, cmd: Command, events: GameEvent[])
   switch (cmd.kind) {
     case "recruit": {
       const province = ownProvince(state, me, cmd.province);
-      if (!province.buildings.includes("barracks")) fail("Recruiting requires a barracks");
+      if (province.population < POP_PER_SQUAD) fail(`Not enough people here to raise a squad (${province.population}/${POP_PER_SQUAD})`);
       const era = cmd.era ?? bestMainEra(state, me, cmd.type);
       if (!hasEra(state, me, cmd.type, era)) fail(`${era} ${cmd.type} is not researched`);
       const unit = unitFor(cmd.type, era);
@@ -94,6 +95,7 @@ function handle(state: GameState, me: string, cmd: Command, events: GameEvent[])
         state.armies[id] = army;
       }
       pay(faction.resources, unit.cost);
+      province.population -= POP_PER_SQUAD;
       const squad = { type: cmd.type, era, soldiers: SQUAD_SIZE[cmd.type] };
       army.squads.push(squad);
       events.push({ kind: "recruited", faction: me, armyId: army.id, squad });

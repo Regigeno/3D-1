@@ -62,13 +62,25 @@ describe("recruiting and research", () => {
     expect(s.factions.red!.resources.gold).toBe(32 - 7);
   });
 
-  it("requires a barracks and ownership", () => {
-    expectError(newLineGame(), { kind: "recruit", province: "E", type: "infantry" }, /do not own/);
+  it("recruits in any owned province and spends population", () => {
+    const s = newLineGame();
+    s.provinces.B = { ...s.provinces.B!, owner: "red", buildings: [], population: 12 };
+    const after = run(s, { kind: "recruit", province: "B", type: "infantry" });
+    expect(after.provinces.B!.population).toBe(8);
+    expect(after.provinces.B!.buildings).not.toContain("barracks");
+  });
+
+  it("refuses a squad when the province is too small", () => {
+    const s = newLineGame();
+    s.provinces.A!.population = 3;
+    expectError(s, { kind: "recruit", province: "A", type: "infantry" }, /people/);
+    expectError(s, { kind: "recruit", province: "E", type: "infantry" }, /do not own/);
   });
 
   it("starts a new army once the existing one is full", () => {
     let s = newLineGame();
     s.factions.red!.resources.gold = 1000;
+    s.provinces.A!.population = 200;
     for (let i = 0; i < 13; i++) s = run(s, { kind: "recruit", province: "A", type: "infantry" });
     const red = Object.values(s.armies).filter((a) => a.owner === "red");
     expect(red.map((a) => a.squads.length).sort()).toEqual([1, 15]);
@@ -217,17 +229,17 @@ describe("turns and economy", () => {
     expect(s.turn).toBe(2);
   });
 
-  it("deserts squads when upkeep cannot be paid", () => {
-    let s = newLineGame();
-    s.factions.blue!.resources.gold = -5;
-    const before = armyOf(s, "blue").squads.length;
+  it("keeps squads when upkeep cannot be paid and floors gold at zero", () => {
+    const s = newLineGame();
+    const blue = armyOf(s, "blue");
+    blue.squads = Array.from({ length: 8 }, () => ({ type: "infantry" as const, era: "prehistoric" as const, soldiers: 5 }));
+    s.factions.blue!.resources.gold = 0;
     const r = applyCommand(s, { kind: "end-turn" });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.events.some((e) => e.kind === "desertion")).toBe(true);
-    expect(r.state.factions.blue!.resources.gold).toBeGreaterThanOrEqual(0);
-    const after = Object.values(r.state.armies).find((a) => a.owner === "blue")?.squads.length ?? 0;
-    expect(after).toBeLessThan(before);
+    expect(r.events.some((e) => e.kind === "desertion")).toBe(false);
+    expect(r.state.factions.blue!.resources.gold).toBe(0);
+    expect(Object.values(r.state.armies).find((a) => a.owner === "blue")?.squads).toHaveLength(8);
   });
 
   it("limits fog of war to owned land, armies, and their neighbors", () => {

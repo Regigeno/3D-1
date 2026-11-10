@@ -161,6 +161,20 @@ describe("GameSession", () => {
     expect(session.state).toBe(before);
   });
 
+  it("assigns each campaign seat to a human or the computer", () => {
+    const session = GameSession.newRandomGame({
+      map: "fantasy-earth",
+      seed: 1,
+      provinces: 30,
+      factions: 2,
+      seats: { blue: "human", purple: "human", gold: "ai", teal: "ai", red: "ai", green: "ai" },
+    });
+    expect(session.state.factions.blue!.controller).toBe("human");
+    expect(session.state.factions.purple!.controller).toBe("human");
+    expect(session.state.factions.gold!.controller).toBe("ai");
+    expect(session.state.factions.teal!.controller).toBe("ai");
+  });
+
   it("starts a preset map as the chosen faction", () => {
     const session = GameSession.newRandomGame({ map: "fantasy-earth", seed: 4, provinces: 30, factions: 2, humanFaction: "teal" });
     expect(session.state.scenario.provinces).toHaveLength(56);

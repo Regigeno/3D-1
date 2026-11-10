@@ -1,4 +1,4 @@
-import { armyUpkeep, ownedProvinces, rules, scenarioProvince, type Building, type GameState, type Resources } from "../engine";
+import { armyUpkeep, collectedIncome, factionIncome, ownedProvinces, rules, scenarioProvince, type Building, type GameState, type Resources } from "../engine";
 import { provinceName } from "./describe";
 
 export interface LedgerLine {
@@ -55,13 +55,18 @@ export function ledger(state: GameState, faction: string): Ledger {
     .filter((a) => a.owner === faction)
     .map((a) => ({ label: `Army at ${provinceName(state, a.location)} (${a.squads.length} squads)`, gold: armyUpkeep(a) }));
 
-  const net = zero();
-  for (const line of income) {
-    net.gold += line.amount.gold;
-    net.knowledge += line.amount.knowledge;
-    net.mana += line.amount.mana;
-    net.energy += line.amount.energy;
+  const collected = collectedIncome(state, faction);
+  const listed = factionIncome(state, faction);
+  const handicap = zero();
+  handicap.gold = collected.gold - listed.gold;
+  handicap.knowledge = collected.knowledge - listed.knowledge;
+  handicap.mana = collected.mana - listed.mana;
+  handicap.energy = collected.energy - listed.energy;
+  if (handicap.gold || handicap.knowledge || handicap.mana || handicap.energy) {
+    income.push({ label: "Petty (15% less)", amount: handicap });
   }
+
+  const net = { ...collected };
   net.gold -= upkeep.reduce((n, u) => n + u.gold, 0);
 
   return { income, upkeep, net };
@@ -76,5 +81,5 @@ export const BUILDING_INFO: Record<Building, { name: string; effect: string }> =
     effect: `+${rules.POWER_PLANT_ENERGY} energy per turn (+${rules.POWER_PLANT_ENERGY_POWER_SITE} on a power site)`,
   },
   fort: { name: "Fort", effect: `${rules.FORT_GARRISON_SQUADS} garrison squads defend this province` },
-  barracks: { name: "Barracks", effect: "Recruit squads here" },
+  barracks: { name: "Barracks", effect: "Population grows faster, and the province can support more people" },
 };

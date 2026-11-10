@@ -1,10 +1,11 @@
-import { BUILDING_COST, LIBRARY_KNOWLEDGE, MARKET_GOLD, MIN_PEACE_TURNS, MOVE_COST, POWER_PLANT_ENERGY, POWER_PLANT_ENERGY_POWER_SITE, RESEARCH_COST, SHRINE_MANA_LEY_LINE } from "../data/rules";
+import { BUILDING_COST, DIFFICULTY_MIND, LIBRARY_KNOWLEDGE, MARKET_GOLD, MIN_PEACE_TURNS, MOVE_COST, POP_PER_SQUAD, POWER_PLANT_ENERGY, POWER_PLANT_ENERGY_POWER_SITE, RESEARCH_COST, SHRINE_MANA_LEY_LINE } from "../data/rules";
 import { MAX_SQUADS_PER_ARMY, TYPE_BONUS, unitFor } from "../data/units";
 import {
   armiesAt,
   bestMainEra,
   bordering,
   canAfford,
+  collectedIncome,
   factionIncome,
   factionUpkeep,
   hasAnyModern,
@@ -28,7 +29,6 @@ import {
   type GameState,
   type MilitaryType,
 } from "../types";
-import { AI_INCOME_MULTIPLIER } from "../data/rules";
 import { adjacentThreat, factionPower, knownDefenders, squadsPower, winChance } from "./evaluate";
 
 interface Profile {
@@ -71,7 +71,6 @@ const PROFILES: Record<AiPersonality, Profile> = {
   },
 };
 
-const DIFFICULTY_THRESHOLD_SHIFT = { easy: 0.12, normal: 0, hard: -0.08 } as const;
 const STRATEGIC_SEARCH_DEPTH = 8;
 
 type Phase = "respond" | "diplomacy" | "research" | "build" | "recruit" | "move" | "merge" | "end";
@@ -81,6 +80,7 @@ const PHASES: Phase[] = ["respond", "diplomacy", "research", "build", "recruit",
 export interface AiTurn {
   me: string;
   profile: Profile;
+  mind: (typeof DIFFICULTY_MIND)[keyof typeof DIFFICULTY_MIND];
   threshold: number;
   rng: Rng;
   phase: number;
@@ -101,10 +101,12 @@ export function startAiTurn(state: GameState): AiTurn {
   const me = state.activeFaction;
   const faction = state.factions[me]!;
   const profile = PROFILES[faction.aiPersonality ?? "opportunist"];
+  const mind = DIFFICULTY_MIND[state.options.difficulty];
   return {
     me,
     profile,
-    threshold: profile.attackThreshold + DIFFICULTY_THRESHOLD_SHIFT[state.options.difficulty],
+    mind,
+    threshold: profile.attackThreshold + mind.attackShift,
     rng: new Rng(state.options.seed ^ hashString(me) ^ Math.imul(state.turn, 0x9e3779b1)),
     phase: 0,
     failed: new Set(),
@@ -124,7 +126,14 @@ export function rejectAiCommand(turn: AiTurn, command: Command): void {
 export function nextAiCommand(state: GameState, turn: AiTurn): Command {
   const visible = visibleProvinces(state, turn.me);
   while (turn.phase < PHASES.length) {
-    const command = PHASE_HANDLERS[PHASES[turn.phase]!](state, turn, visible);
+    const phase = PHASES[turn.phase]!;
+    // A duller rival simply passes on a step. Responding to a treaty still happens,
+    // and the turn always ends.
+    if (phase !== "end" && phase !== "respond" && turn.mind.skipPhase > 0 && turn.rng.next() < turn.mind.skipPhase) {
+      turn.phase++;
+      continue;
+    }
+    const command = PHASE_HANDLERS[phase](state, turn, visible);
     if (command && !turn.failed.has(JSON.stringify(command))) return command;
     // Nothing left to do in this phase, or the engine already rejected its best idea.
     turn.phase++;
@@ -182,7 +191,7 @@ function frontierDistance(state: GameState, me: string): Map<string, number> {
 }
 
 function netGold(state: GameState, me: string): number {
-  return Math.round(factionIncome(state, me).gold * AI_INCOME_MULTIPLIER[state.options.difficulty]) - factionUpkeep(state, me);
+  return collectedIncome(state, me).gold - factionUpkeep(state, me);
 }
 
 function canEnter(state: GameState, me: string, to: string): boolean {
@@ -195,6 +204,7 @@ function canEnter(state: GameState, me: string, to: string): boolean {
 const respond: Handler = (state, turn) => {
   const proposal = state.proposals.find((p) => p.to === turn.me);
   if (!proposal) return null;
+  if (!turn.mind.schemes) return { kind: "respond-proposal", from: proposal.from, accept: true };
   const relation = relationBetween(state, proposal.from, turn.me)!;
   const mine = factionPower(state, turn.me);
   const theirs = factionPower(state, proposal.from);
@@ -216,6 +226,7 @@ const respond: Handler = (state, turn) => {
 };
 
 const diplomacy: Handler = (state, turn) => {
+  if (!turn.mind.schemes) return null;
   if (turn.diplomacyDone) return null;
   turn.diplomacyDone = true;
   const me = turn.me;
@@ -306,11 +317,10 @@ const build: Handler = (state, turn, visible) => {
     if (!best || score > best.score) best = { province, building, score };
   };
 
-  const hasBarracks = owned.some((p) => state.provinces[p]!.buildings.includes("barracks"));
   for (const p of owned) {
     const info = scenarioProvince(state, p);
     const safe = (dist.get(p) ?? 0) >= 2;
-    if (!hasBarracks) consider(p, "barracks", 5 + (dist.get(p) ?? 0));
+    consider(p, "barracks", p === capital ? 0.16 : 0.08);
     consider(p, "market", (MARKET_GOLD / 15) * (safe ? 1.1 : 0.8));
     if (libraries < Math.max(1, Math.floor(owned.length / 6))) consider(p, "library", (LIBRARY_KNOWLEDGE / 15) * 0.9 * (p === capital ? 1.2 : 1));
     if (info.special === "ley-line") consider(p, "shrine", (SHRINE_MANA_LEY_LINE / 15) * 0.6);
@@ -335,12 +345,12 @@ const build: Handler = (state, turn, visible) => {
 const recruit: Handler = (state, turn, visible) => {
   const me = turn.me;
   const faction = state.factions[me]!;
-  const barracks = ownedProvinces(state, me).filter((p) => state.provinces[p]!.buildings.includes("barracks"));
-  if (barracks.length === 0) return null;
+  const sites = ownedProvinces(state, me).filter((p) => state.provinces[p]!.population >= POP_PER_SQUAD);
+  if (sites.length === 0) return null;
 
-  // Recruit where the action is: the barracks closest to land we do not hold.
+  // Recruit where the action is: the populated province closest to land we do not hold.
   const dist = frontierDistance(state, me);
-  const where = [...barracks].sort((a, b) => (dist.get(a) ?? 99) - (dist.get(b) ?? 99) || (a === faction.capital ? -1 : 1))[0]!;
+  const where = [...sites].sort((a, b) => (dist.get(a) ?? 99) - (dist.get(b) ?? 99) || (a === faction.capital ? -1 : 1))[0]!;
 
   // Counter what we can see of the enemy, while keeping our own mix varied.
   const enemyCounts = new Map<MilitaryType, number>();
@@ -371,10 +381,12 @@ const recruit: Handler = (state, turn, visible) => {
       if (!canAfford(faction.resources, unit.cost)) continue;
       if (netGold(state, me) - unit.upkeep < turn.profile.upkeepFloor) continue;
       let counter = 1;
-      for (const [enemyType, count] of enemyCounts) {
-        const share = count / enemyTotal;
-        counter += share * ((TYPE_BONUS[type][enemyType] ?? 1) - 1);
-        counter -= share * ((TYPE_BONUS[enemyType][type] ?? 1) - 1);
+      if (turn.mind.counters) {
+        for (const [enemyType, count] of enemyCounts) {
+          const share = count / enemyTotal;
+          counter += share * ((TYPE_BONUS[type][enemyType] ?? 1) - 1);
+          counter -= share * ((TYPE_BONUS[enemyType][type] ?? 1) - 1);
+        }
       }
       const share = ownTotal ? (ownCounts.get(type) ?? 0) / ownTotal : 0;
       const variety = 1.15 - share;
@@ -401,7 +413,7 @@ function moveCommandFor(state: GameState, turn: AiTurn, army: Army, visible: Set
     return owner !== me && !(owner && isAllied(state, me, owner)) && knownDefenders(state, me, n, visible).length === 0;
   });
   const readyHere = armiesAt(state, here).filter((a) => a.owner === me && a.movementLeft > 0).length;
-  if (freeTargets.length > readyHere && army.squads.length >= 2) {
+  if (turn.mind.splits && freeTargets.length > readyHere && army.squads.length >= 2) {
     const cheapest = army.squads
       .map((s, i) => ({ i, cost: unitFor(s.type, s.era).cost.gold ?? 0 }))
       .sort((a, b) => a.cost - b.cost)[0]!;
@@ -450,7 +462,7 @@ function strategicStep(state: GameState, turn: AiTurn, army: Army, visible: Set<
   while (queue.length) {
     const id = queue.shift()!;
     const d = depth.get(id)!;
-    if (d >= STRATEGIC_SEARCH_DEPTH) continue;
+    if (d >= (turn.mind.searchDepth || STRATEGIC_SEARCH_DEPTH)) continue;
     for (const n of neighborsOf(state, id)) {
       if (depth.has(n)) continue;
       depth.set(n, d + 1);

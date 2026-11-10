@@ -4,6 +4,7 @@ import { createPhysicsResolver } from "../battle/resolver";
 import type { SaveData } from "../game/save";
 import { GameSession, type NewGameSettings } from "../game/session";
 import { NewGameMenu } from "./NewGameMenu";
+import { SandboxScreen } from "./SandboxScreen";
 import { useSoundSettings } from "./services";
 
 const GameScreen = lazy(() => import("./GameScreen").then((m) => ({ default: m.GameScreen })));
@@ -18,6 +19,7 @@ export function App() {
   const [rapier, setRapier] = useState<Rapier | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [request, setRequest] = useState<Request | null>(null);
+  const [sandbox, setSandbox] = useState(false);
 
   useEffect(() => {
     loadRapier().then(setRapier, (e: unknown) => setError(`Could not load the physics engine: ${e instanceof Error ? e.message : String(e)}`));
@@ -38,10 +40,12 @@ export function App() {
 
   const loading = <div className="loading-screen">Loading…</div>;
 
+  if (sandbox && rapier) return <SandboxScreen rapier={rapier} onExit={() => setSandbox(false)} />;
+
   if (!session || !rapier) {
     return (
       <>
-        <NewGameMenu onStart={(settings) => setRequest({ kind: "new", settings })} onLoad={(save) => setRequest({ kind: "load", save })} />
+        <NewGameMenu onStart={(settings) => setRequest({ kind: "new", settings })} onLoad={(save) => setRequest({ kind: "load", save })} onSandbox={() => setSandbox(true)} />
         {(request || error) && (
           <div className="overlay" onClick={() => setError(null)}>
             <div className="panel loading">{error ?? "Loading the physics engine…"}</div>
